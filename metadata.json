@@ -1,0 +1,6 @@
+{
+  "name": "GasoilPro",
+  "description": "GasoilPro - Application industrielle de gestion de la consommation de gasoil, suivi de parc d'engins, jauges dynamiques de citernes, réceptions avec signature manuscrite et maintenance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

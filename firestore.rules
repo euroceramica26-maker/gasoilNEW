@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Citernes
+    match /citernes/{citerneId} {
+      allow read: if true;
+      allow create: if isValidId(citerneId) 
+        && incoming().id is string
+        && incoming().code is string && incoming().code.size() <= 32
+        && incoming().capaciteTotale is number && incoming().capaciteTotale > 0
+        && incoming().stockActuel is number && incoming().stockActuel >= 0;
+      allow update: if isValidId(citerneId)
+        && incoming().id == existing().id
+        && incoming().stockActuel is number && incoming().stockActuel >= 0;
+      allow delete: if isValidId(citerneId);
+    }
+
+    // Vehicles
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow create: if isValidId(vehicleId)
+        && incoming().id is string
+        && incoming().code is string && incoming().code.size() <= 32
+        && incoming().immatriculation is string && incoming().immatriculation.size() <= 64;
+      allow update: if isValidId(vehicleId)
+        && incoming().id == existing().id;
+      allow delete: if isValidId(vehicleId);
+    }
+
+    // Stock Entries (Réceptions)
+    match /stock_entries/{entryId} {
+      allow read: if true;
+      allow create: if isValidId(entryId)
+        && incoming().id is string
+        && incoming().numeroBon is string && incoming().numeroBon.size() <= 64
+        && incoming().quantiteLivree is number && incoming().quantiteLivree > 0;
+      allow update: if isValidId(entryId)
+        && incoming().id == existing().id;
+      allow delete: if isValidId(entryId);
+    }
+
+    // Fuel Dispenses (Distributions)
+    match /fuel_dispenses/{dispenseId} {
+      allow read: if true;
+      allow create: if isValidId(dispenseId)
+        && incoming().id is string
+        && incoming().codeTicket is string && incoming().codeTicket.size() <= 64
+        && incoming().volumeLivre is number && incoming().volumeLivre > 0;
+      allow update: if isValidId(dispenseId)
+        && incoming().id == existing().id;
+      allow delete: if isValidId(dispenseId);
+    }
+
+    // Fournisseurs
+    match /fournisseurs/{fournisseurId} {
+      allow read: if true;
+      allow write: if isValidId(fournisseurId) && incoming().nom is string;
+    }
+
+    // Vehicle Types
+    match /vehicle_types/{typeId} {
+      allow read: if true;
+      allow write: if isValidId(typeId) && incoming().libelle is string;
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isValidId(userId)
+        && incoming().id is string
+        && incoming().nom is string && incoming().nom.size() <= 128;
+      allow delete: if isValidId(userId);
+    }
+
+    // Subscriptions
+    match /subscriptions/{subscriptionId} {
+      allow read: if true;
+      allow create, update: if isValidId(subscriptionId)
+        && incoming().licenseKey is string && incoming().licenseKey.size() <= 64;
+      allow delete: if isValidId(subscriptionId);
+    }
+
+    // Audit Logs - Immutable (Append-only)
+    match /audit_logs/{logId} {
+      allow read: if true;
+      allow create: if isValidId(logId)
+        && incoming().action is string && incoming().action.size() <= 128
+        && incoming().user is string && incoming().user.size() <= 128;
+      allow update, delete: if false;
+    }
+
+    // Test connection document
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

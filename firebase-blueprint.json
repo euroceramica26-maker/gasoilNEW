@@ -1,0 +1,192 @@
+{
+  "entities": {
+    "Citerne": {
+      "title": "Citerne",
+      "description": "Citerne industrielle de stockage de gasoil",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "nom": { "type": "string" },
+        "capaciteTotale": { "type": "number" },
+        "stockActuel": { "type": "number" },
+        "seuilAlerteBas": { "type": "number" },
+        "seuilCritique": { "type": "number" },
+        "temperatureC": { "type": "number" },
+        "densiteKgL": { "type": "number" },
+        "typeGasoil": { "type": "string" },
+        "emplacement": { "type": "string" },
+        "dernierControle": { "type": "string" },
+        "statut": { "type": "string" },
+        "clientId": { "type": "string" },
+        "entreprise": { "type": "string" }
+      },
+      "required": ["id", "code", "nom", "capaciteTotale", "stockActuel", "statut"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Engin de chantier ou véhicule du parc roulant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "immatriculation": { "type": "string" },
+        "marque": { "type": "string" },
+        "modele": { "type": "string" },
+        "type": { "type": "string" },
+        "status": { "type": "string" },
+        "annee": { "type": "number" },
+        "kilometrageOuHeures": { "type": "number" },
+        "uniteMesure": { "type": "string" },
+        "capaciteReservoir": { "type": "number" },
+        "consommationMoyenneTheorique": { "type": "number" },
+        "dateMiseEnService": { "type": "string" },
+        "departement": { "type": "string" },
+        "clientId": { "type": "string" },
+        "entreprise": { "type": "string" }
+      },
+      "required": ["id", "code", "immatriculation", "status"]
+    },
+    "StockEntry": {
+      "title": "StockEntry",
+      "description": "Réception et approvisionnement de gasoil par camion citerne",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "numeroBon": { "type": "string" },
+        "dateLivraison": { "type": "string" },
+        "fournisseur": { "type": "string" },
+        "chauffeurLivreur": { "type": "string" },
+        "immatriculationCiterneLivreur": { "type": "string" },
+        "citerneId": { "type": "string" },
+        "quantiteLivree": { "type": "number" },
+        "densiteMesuree": { "type": "number" },
+        "temperatureMesuree": { "type": "number" },
+        "poidsKg": { "type": "number" },
+        "receptionnaireUsine": { "type": "string" },
+        "signatureBase64": { "type": "string" },
+        "notes": { "type": "string" },
+        "statut": { "type": "string" },
+        "clientId": { "type": "string" },
+        "entreprise": { "type": "string" }
+      },
+      "required": ["id", "numeroBon", "citerneId", "quantiteLivree", "statut"]
+    },
+    "FuelDispense": {
+      "title": "FuelDispense",
+      "description": "Distribution de carburant gasoil à un engin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codeTicket": { "type": "string" },
+        "dateHeure": { "type": "string" },
+        "citerneId": { "type": "string" },
+        "vehiculeId": { "type": "string" },
+        "pompiste": { "type": "string" },
+        "chauffeur": { "type": "string" },
+        "volumeLivre": { "type": "number" },
+        "compteurActuel": { "type": "number" },
+        "compteurPrecedent": { "type": "number" },
+        "deltaCompteur": { "type": "number" },
+        "ratioConsommation": { "type": "number" },
+        "surconsommationAlerte": { "type": "boolean" },
+        "signatureChauffeur": { "type": "string" },
+        "signaturePompiste": { "type": "string" },
+        "remarques": { "type": "string" },
+        "clientId": { "type": "string" },
+        "entreprise": { "type": "string" }
+      },
+      "required": ["id", "codeTicket", "citerneId", "vehiculeId", "volumeLivre"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Utilisateur opérateur, pompiste ou administrateur de GasoilPro",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "matricule": { "type": "string" },
+        "login": { "type": "string" },
+        "nom": { "type": "string" },
+        "prenom": { "type": "string" },
+        "role": { "type": "string" },
+        "email": { "type": "string" },
+        "telephone": { "type": "string" },
+        "statut": { "type": "string" },
+        "badgeCode": { "type": "string" },
+        "departement": { "type": "string" },
+        "dateCreation": { "type": "string" },
+        "clientId": { "type": "string" },
+        "entreprise": { "type": "string" }
+      },
+      "required": ["id", "matricule", "role", "nom"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Abonnement de licence GasoilPro (cle de 36 caracteres)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "licenseKey": { "type": "string" },
+        "clientName": { "type": "string" },
+        "entreprise": { "type": "string" },
+        "contact": { "type": "string" },
+        "telephone": { "type": "string" },
+        "ville": { "type": "string" },
+        "plan": { "type": "string" },
+        "dateEmission": { "type": "string" },
+        "dateExpiration": { "type": "string" },
+        "statut": { "type": "string" },
+        "prixMAD": { "type": "number" },
+        "maxVehicules": { "type": "number" },
+        "maxCiternes": { "type": "number" },
+        "cleActilee": { "type": "boolean" }
+      },
+      "required": ["id", "licenseKey", "entreprise", "plan", "statut"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Journal d audit et d operations de securite",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "user": { "type": "string" },
+        "action": { "type": "string" },
+        "module": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "user", "action", "status"]
+    }
+  },
+  "firestore": {
+    "/citernes/{citerneId}": {
+      "schema": "Citerne",
+      "description": "Stockage et niveaux des citernes de gasoil"
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": "Vehicle",
+      "description": "Parc roulant et engins suivis"
+    },
+    "/stock_entries/{entryId}": {
+      "schema": "StockEntry",
+      "description": "Bons de réceptions de gasoil"
+    },
+    "/fuel_dispenses/{dispenseId}": {
+      "schema": "FuelDispense",
+      "description": "Distributions et pleins de carburant"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Utilisateurs et autorisations"
+    },
+    "/subscriptions/{subscriptionId}": {
+      "schema": "Subscription",
+      "description": "Licences et abonnements clients"
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Journaux d audit sécurisés"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "subscriptions": [],
+  "activeLicenseKey": "",
+  "securityConfig": {
+    "emergencyLockdown": false,
+    "maintenanceMode": false,
+    "readOnlyMode": false,
+    "requireSignatures": true,
+    "doubleValidationReceptions": true,
+    "sessionTimeoutMinutes": 60,
+    "maxLoginAttempts": 5,
+    "allowOfflineMode": true,
+    "masterPinCode": "MAROC2026"
+  },
+  "auditLogs": [
+    {
+      "id": "LOG-001",
+      "timestamp": "2026-10-10 09:00:00",
+      "user": "ouaradtech (Super Admin)",
+      "action": "Réinitialisation Complète du Système",
+      "module": "Sécurité & Administration",
+      "details": "Toutes les données réinitialisées. Seul le compte Super Administrateur ouaradtech est actif.",
+      "status": "Succès",
+      "ipAddress": "127.0.0.1"
+    }
+  ],
+  "appData": null
+}
