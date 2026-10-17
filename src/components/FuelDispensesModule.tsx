@@ -81,6 +81,18 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
     );
   });
 
+  React.useEffect(() => {
+    if (citernes.length > 0 && (!citerneId || !citernes.some(c => c.id === citerneId))) {
+      setCiterneId(citernes[0].id);
+    }
+  }, [citernes, citerneId]);
+
+  React.useEffect(() => {
+    if (vehicles.length > 0 && (!selectedVehicleId || !vehicles.some(v => v.id === selectedVehicleId))) {
+      setSelectedVehicleId(vehicles[0].id);
+    }
+  }, [vehicles, selectedVehicleId]);
+
   // Auto calculate delta and ratio
   const compteurPrecedent = currentVehicle ? currentVehicle.kilometrageOuHeures : 0;
   const delta = Math.max(0, compteurActuel - compteurPrecedent);
@@ -106,7 +118,7 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
     setVolumeLivre(120);
     setVolumeLivreInput('120');
     setChauffeur('Mourad Kharrat');
-    setPompiste('Samir Chaabane');
+    setPompiste(currentUser ? `${currentUser.prenom} ${currentUser.nom}` : 'Samir Chaabane');
     setRemarques('');
     setSignatureChauffeur('');
     setSignaturePompiste('');
@@ -165,8 +177,14 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
-    if (!currentVehicle || !currentCiterne) return;
+    if (!currentCiterne) {
+      setFormError('Aucune citerne de carburant disponible. Veuillez d’abord configurer une citerne dans Gestion Citernes.');
+      return;
+    }
+    if (!currentVehicle) {
+      setFormError('Veuillez sélectionner un véhicule ou engin destinataire.');
+      return;
+    }
 
     // Arrondi précis à 2 décimales
     const finalVolume = Number((Math.round(volumeLivre * 100) / 100).toFixed(2));

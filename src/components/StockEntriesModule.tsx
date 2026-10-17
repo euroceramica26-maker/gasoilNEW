@@ -77,9 +77,21 @@ export const StockEntriesModule: React.FC<StockEntriesModuleProps> = ({
     setIsFormOpen(true);
   };
 
+  React.useEffect(() => {
+    if (citernes.length > 0 && (!formData.citerneId || !citernes.some(c => c.id === formData.citerneId))) {
+      setFormData(prev => ({ ...prev, citerneId: citernes[0].id }));
+    }
+  }, [citernes, formData.citerneId]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+
+    if (citernes.length === 0 || !formData.citerneId) {
+      setFormError('Aucune citerne de stockage disponible. Veuillez d’abord créer une citerne dans Gestion Citernes.');
+      return;
+    }
+
     if (!formData.chauffeurLivreur || !formData.immatriculationCiterneLivreur) {
       setFormError('Veuillez renseigner le nom du chauffeur et l’immatriculation de la citerne livreur.');
       return;

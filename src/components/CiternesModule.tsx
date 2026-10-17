@@ -56,9 +56,19 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
 
   const handleOpenCreate = () => {
     setEditingCiterne(null);
+    setFormError(null);
+
+    // Auto-générer un code citerne unique qui n'entre jamais en collision
+    let nextNum = 1;
+    while (citernes.some(c => c.code.trim().toLowerCase() === `cit-0${nextNum}`.toLowerCase() || c.code.trim().toLowerCase() === `cit-${nextNum}`.toLowerCase())) {
+      nextNum++;
+    }
+    const codeGen = nextNum < 10 ? `CIT-0${nextNum}` : `CIT-${nextNum}`;
+    const letter = String.fromCharCode(65 + ((nextNum - 1) % 26));
+
     setFormData({
-      code: `CIT-0${citernes.length + 1}`,
-      nom: `Citerne Réserve ${String.fromCharCode(65 + citernes.length)}`,
+      code: codeGen,
+      nom: `Citerne Réserve ${letter}`,
       capaciteTotale: 40000,
       stockActuel: 25000,
       seuilAlerteBas: 8000,
@@ -75,6 +85,7 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
 
   const handleOpenEdit = (c: Citerne) => {
     setEditingCiterne(c);
+    setFormError(null);
     setFormData({
       code: c.code,
       nom: c.nom,
@@ -95,23 +106,54 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!formData.code || !formData.nom) {
+
+    const cleanCode = formData.code.trim();
+    const cleanNom = formData.nom.trim();
+
+    if (!cleanCode || !cleanNom) {
       setFormError('Veuillez renseigner le code et le nom de la citerne.');
       return;
     }
 
-    if (formData.stockActuel > formData.capaciteTotale) {
-      setFormError('Le stock actuel ne peut pas dépasser la capacité totale de la citerne.');
+    if (formData.capaciteTotale <= 0 || isNaN(formData.capaciteTotale)) {
+      setFormError('La capacité totale doit être un nombre strictement supérieur à 0 Litres.');
       return;
     }
+
+    if (formData.stockActuel < 0 || isNaN(formData.stockActuel)) {
+      setFormError('Le stock actuel ne peut pas être un nombre négatif.');
+      return;
+    }
+
+    if (formData.stockActuel > formData.capaciteTotale) {
+      setFormError(`Le stock actuel (${formData.stockActuel.toLocaleString('fr-FR')} L) ne peut pas dépasser la capacité totale (${formData.capaciteTotale.toLocaleString('fr-FR')} L).`);
+      return;
+    }
+
+    // Vérifier l'unicité du code citerne
+    const isCodeDuplicate = citernes.some(c => 
+      (!editingCiterne || c.id !== editingCiterne.id) && 
+      c.code.trim().toLowerCase() === cleanCode.toLowerCase()
+    );
+
+    if (isCodeDuplicate) {
+      setFormError(`Le code citerne "${cleanCode}" est déjà attribué à une autre citerne. Veuillez saisir un code unique.`);
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      code: cleanCode,
+      nom: cleanNom
+    };
 
     if (editingCiterne) {
       onUpdateCiterne({
         ...editingCiterne,
-        ...formData
+        ...payload
       });
     } else {
-      onAddCiterne(formData);
+      onAddCiterne(payload);
     }
     setIsModalOpen(false);
   };
@@ -139,9 +181,32 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
         </button>
       </div>
 
-      {/* Grid of Citernes with Interactive Graphic and Management Controls */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {citernes.map(citerne => {
+      {/* État vide si aucune citerne n'est encore installée */}
+      {citernes.length === 0 ? (
+        <div className="bg-slate-900/80 border-2 border-dashed border-slate-700/80 rounded-2xl p-8 sm:p-12 text-center max-w-2xl mx-auto space-y-4">
+          <div className="w-16 h-16 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center mx-auto text-amber-400">
+            <Layers className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-base sm:text-lg font-bold text-slate-100 font-industrial">
+              Aucune Citerne Installée
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              Votre parc de carburant ne comporte actuellement aucune cuve enregistrée. Ajoutez votre première citerne pour pouvoir réceptionner des livraisons et effectuer des distributions.
+            </p>
+          </div>
+          <button
+            onClick={handleOpenCreate}
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs sm:text-sm font-bold rounded-xl inline-flex items-center gap-2 shadow-lg shadow-amber-500/20 transition cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Ajouter ma Première Citerne</span>
+          </button>
+        </div>
+      ) : (
+        /* Grid of Citernes with Interactive Graphic and Management Controls */
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {citernes.map(citerne => {
           const percentage = ((citerne.stockActuel / citerne.capaciteTotale) * 100).toFixed(1);
           const isCritical = citerne.stockActuel <= citerne.seuilCritique;
           const isWarning = !isCritical && citerne.stockActuel <= citerne.seuilAlerteBas;
@@ -216,7 +281,8 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Modal Add / Edit Citerne */}
       {isModalOpen && (
@@ -275,8 +341,8 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
                   <input
                     type="number"
                     required
-                    min="1000"
-                    step="500"
+                    min="1"
+                    step="any"
                     value={formData.capaciteTotale}
                     onChange={e => setFormData({...formData, capaciteTotale: Number(e.target.value)})}
                     className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded text-amber-400 font-bold font-mono-num"
@@ -290,8 +356,7 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
                     type="number"
                     required
                     min="0"
-                    max={formData.capaciteTotale}
-                    step="100"
+                    step="any"
                     value={formData.stockActuel}
                     onChange={e => setFormData({...formData, stockActuel: Number(e.target.value)})}
                     className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded text-slate-100 font-bold font-mono-num"
@@ -305,6 +370,8 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
                   <input
                     type="number"
                     required
+                    min="0"
+                    step="any"
                     value={formData.seuilAlerteBas}
                     onChange={e => setFormData({...formData, seuilAlerteBas: Number(e.target.value)})}
                     className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded text-amber-300 font-mono-num"
@@ -315,6 +382,8 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
                   <input
                     type="number"
                     required
+                    min="0"
+                    step="any"
                     value={formData.seuilCritique}
                     onChange={e => setFormData({...formData, seuilCritique: Number(e.target.value)})}
                     className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded text-red-400 font-mono-num"
@@ -354,7 +423,7 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
                   <label className="text-slate-400 block mb-1">Température (°C)</label>
                   <input
                     type="number"
-                    step="0.1"
+                    step="any"
                     value={formData.temperatureC}
                     onChange={e => setFormData({...formData, temperatureC: Number(e.target.value)})}
                     className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded text-slate-100 font-mono-num"
@@ -364,7 +433,7 @@ export const CiternesModule: React.FC<CiternesModuleProps> = ({
                   <label className="text-slate-400 block mb-1">Densité (kg/L)</label>
                   <input
                     type="number"
-                    step="0.001"
+                    step="any"
                     value={formData.densiteKgL}
                     onChange={e => setFormData({...formData, densiteKgL: Number(e.target.value)})}
                     className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded text-slate-100 font-mono-num"

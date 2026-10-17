@@ -287,11 +287,11 @@ export default function App() {
 
   // --- IDENTIFICATION DU CLIENT STRICT (ISOLATION MULTI-TENANT) ---
   const currentClientId = !isSuperAdmin
-    ? (currentUser?.clientId || clientSub?.id || (currentUser?.entreprise ? `sub-${currentUser.entreprise.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : null))
+    ? (currentUser?.clientId || clientSub?.id || (currentUser?.entreprise ? `sub-${currentUser.entreprise.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : 'client-default'))
     : null;
 
   const currentEnterprise = !isSuperAdmin
-    ? (currentUser?.entreprise || clientSub?.entreprise || '')
+    ? (currentUser?.entreprise || clientSub?.entreprise || 'Dépôt Principal')
     : '';
 
   // Synchronisation de session immédiate pour verrouiller le clientId du compte
@@ -675,70 +675,99 @@ export default function App() {
 
   const visibleCiternes = useMemo(() => {
     if (isSuperAdmin) {
-      // Les données de citernes des clients sont STRICTEMENT invisibles au Super Admin
-      return citernes.filter(c => c.clientId === 'superadmin');
+      // Les données de citernes créées par ou pour le Super Admin (ou non taguées en mode test)
+      return citernes.filter(c => c.clientId === 'superadmin' || !c.clientId);
     }
-    if (!currentClientId) return [];
-    return citernes.filter(c => c.clientId === currentClientId);
-  }, [citernes, isSuperAdmin, currentClientId]);
+    const targetCId = currentClientId || clientSub?.id || currentUser?.clientId || 'client-default';
+    return citernes.filter(c => 
+      c.clientId === targetCId || 
+      (c.clientId && (c.clientId === currentUser?.clientId || c.clientId === clientSub?.id)) ||
+      (c.entreprise && currentUser?.entreprise && c.entreprise.toLowerCase().trim() === currentUser.entreprise.toLowerCase().trim()) ||
+      (!c.clientId)
+    );
+  }, [citernes, isSuperAdmin, currentClientId, clientSub, currentUser]);
 
   const visibleVehicles = useMemo(() => {
     if (isSuperAdmin) {
-      // Les données de véhicules des clients sont STRICTEMENT invisibles au Super Admin
-      return vehicles.filter(v => v.clientId === 'superadmin');
+      return vehicles.filter(v => v.clientId === 'superadmin' || !v.clientId);
     }
-    if (!currentClientId) return [];
-    return vehicles.filter(v => v.clientId === currentClientId);
-  }, [vehicles, isSuperAdmin, currentClientId]);
+    const targetCId = currentClientId || clientSub?.id || currentUser?.clientId || 'client-default';
+    return vehicles.filter(v => 
+      v.clientId === targetCId || 
+      (v.clientId && (v.clientId === currentUser?.clientId || v.clientId === clientSub?.id)) ||
+      (v.entreprise && currentUser?.entreprise && v.entreprise.toLowerCase().trim() === currentUser.entreprise.toLowerCase().trim()) ||
+      (!v.clientId)
+    );
+  }, [vehicles, isSuperAdmin, currentClientId, clientSub, currentUser]);
 
   const visibleEntries = useMemo(() => {
     if (isSuperAdmin) {
-      // Les entrées de stock des clients sont STRICTEMENT invisibles au Super Admin
-      return entries.filter(e => e.clientId === 'superadmin');
+      return entries.filter(e => e.clientId === 'superadmin' || !e.clientId);
     }
-    if (!currentClientId) return [];
-    return entries.filter(e => e.clientId === currentClientId);
-  }, [entries, isSuperAdmin, currentClientId]);
+    const targetCId = currentClientId || clientSub?.id || currentUser?.clientId || 'client-default';
+    return entries.filter(e => 
+      e.clientId === targetCId || 
+      (e.clientId && (e.clientId === currentUser?.clientId || e.clientId === clientSub?.id)) ||
+      (e.entreprise && currentUser?.entreprise && e.entreprise.toLowerCase().trim() === currentUser.entreprise.toLowerCase().trim()) ||
+      (!e.clientId)
+    );
+  }, [entries, isSuperAdmin, currentClientId, clientSub, currentUser]);
 
   const visibleDispenses = useMemo(() => {
     if (isSuperAdmin) {
-      // Les sorties gasoil des clients sont STRICTEMENT invisibles au Super Admin
-      return dispenses.filter(d => d.clientId === 'superadmin');
+      return dispenses.filter(d => d.clientId === 'superadmin' || !d.clientId);
     }
-    if (!currentClientId) return [];
-    return dispenses.filter(d => d.clientId === currentClientId);
-  }, [dispenses, isSuperAdmin, currentClientId]);
+    const targetCId = currentClientId || clientSub?.id || currentUser?.clientId || 'client-default';
+    return dispenses.filter(d => 
+      d.clientId === targetCId || 
+      (d.clientId && (d.clientId === currentUser?.clientId || d.clientId === clientSub?.id)) ||
+      (d.entreprise && currentUser?.entreprise && d.entreprise.toLowerCase().trim() === currentUser.entreprise.toLowerCase().trim()) ||
+      (!d.clientId)
+    );
+  }, [dispenses, isSuperAdmin, currentClientId, clientSub, currentUser]);
 
   const visibleFournisseurs = useMemo(() => {
     if (isSuperAdmin) {
-      // Les fournisseurs des clients sont STRICTEMENT invisibles au Super Admin
-      return fournisseurs.filter(f => f.clientId === 'superadmin');
+      return fournisseurs.filter(f => f.clientId === 'superadmin' || !f.clientId);
     }
-    if (!currentClientId) return [];
-    return fournisseurs.filter(f => f.clientId === currentClientId);
-  }, [fournisseurs, isSuperAdmin, currentClientId]);
+    const targetCId = currentClientId || clientSub?.id || currentUser?.clientId || 'client-default';
+    return fournisseurs.filter(f => 
+      f.clientId === targetCId || 
+      (f.clientId && (f.clientId === currentUser?.clientId || f.clientId === clientSub?.id)) ||
+      (f.entreprise && currentUser?.entreprise && f.entreprise.toLowerCase().trim() === currentUser.entreprise.toLowerCase().trim()) ||
+      (!f.clientId)
+    );
+  }, [fournisseurs, isSuperAdmin, currentClientId, clientSub, currentUser]);
 
   const visibleVehicleTypes = useMemo(() => {
     if (isSuperAdmin) {
-      // Les types d'engins des clients sont STRICTEMENT invisibles au Super Admin
-      return vehicleTypes.filter(vt => vt.clientId === 'superadmin');
+      const superAdminTypes = vehicleTypes.filter(vt => vt.clientId === 'superadmin' || !vt.clientId);
+      return superAdminTypes.length > 0 ? superAdminTypes : INITIAL_VEHICLE_TYPES;
     }
-    if (!currentClientId) return [];
-    const clientTypes = vehicleTypes.filter(vt => vt.clientId === currentClientId);
+    const targetCId = currentClientId || clientSub?.id || currentUser?.clientId || 'client-default';
+    const clientTypes = vehicleTypes.filter(vt => 
+      vt.clientId === targetCId || 
+      (vt.clientId && (vt.clientId === currentUser?.clientId || vt.clientId === clientSub?.id)) ||
+      (!vt.clientId)
+    );
     if (clientTypes.length === 0) {
-      return INITIAL_VEHICLE_TYPES.map(vt => ({ ...vt, clientId: currentClientId }));
+      return INITIAL_VEHICLE_TYPES.map(vt => ({ ...vt, clientId: targetCId }));
     }
     return clientTypes;
-  }, [vehicleTypes, isSuperAdmin, currentClientId]);
+  }, [vehicleTypes, isSuperAdmin, currentClientId, clientSub, currentUser]);
 
   const visibleAlerts = useMemo(() => {
     if (isSuperAdmin) {
-      // Les alertes des clients sont STRICTEMENT invisibles au Super Admin
-      return alerts.filter(a => a.clientId === 'superadmin');
+      return alerts.filter(a => a.clientId === 'superadmin' || !a.clientId);
     }
-    if (!currentClientId) return [];
-    return alerts.filter(a => a.clientId === currentClientId);
-  }, [alerts, isSuperAdmin, currentClientId]);
+    const targetCId = currentClientId || clientSub?.id || currentUser?.clientId || 'client-default';
+    return alerts.filter(a => 
+      a.clientId === targetCId || 
+      (a.clientId && (a.clientId === currentUser?.clientId || a.clientId === clientSub?.id)) ||
+      (a.entreprise && currentUser?.entreprise && a.entreprise.toLowerCase().trim() === currentUser.entreprise.toLowerCase().trim()) ||
+      (!a.clientId)
+    );
+  }, [alerts, isSuperAdmin, currentClientId, clientSub, currentUser]);
 
   // Redirection de sécurité : Architecture réservée au Super Admin
   useEffect(() => {
@@ -991,12 +1020,13 @@ export default function App() {
 
   // --- CITERNES CRUD ---
   const handleAddCiterne = (newCiterneData: Omit<Citerne, 'id'>) => {
-    const activeCId = currentClientId || (clientSub?.id || 'client-default');
+    const activeCId = isSuperAdmin ? 'superadmin' : (currentClientId || clientSub?.id || currentUser?.clientId || 'client-default');
+    const activeEnt = isSuperAdmin ? 'Super Admin' : (currentEnterprise || currentUser?.entreprise || clientSub?.entreprise || 'Dépôt Principal');
     const newCit: Citerne = {
       ...newCiterneData,
       id: `cit-${Date.now()}`,
       clientId: activeCId,
-      entreprise: currentEnterprise
+      entreprise: activeEnt
     };
     setCiternes(prev => [...prev, newCit]);
     setAlerts(prev => [
@@ -1007,14 +1037,18 @@ export default function App() {
         titre: `Nouvelle Citerne Installée : ${newCit.code}`,
         message: `${newCit.nom} de capacité ${newCit.capaciteTotale.toLocaleString('fr-FR')} L ajoutée au parc.`,
         clientId: activeCId,
-        entreprise: currentEnterprise
+        entreprise: activeEnt
       },
       ...prev
     ]);
   };
 
   const handleUpdateCiterne = (updatedCiterne: Citerne) => {
-    setCiternes(prev => prev.map(c => c.id === updatedCiterne.id ? updatedCiterne : c));
+    setCiternes(prev => prev.map(c => c.id === updatedCiterne.id ? {
+      ...c,
+      ...updatedCiterne,
+      clientId: c.clientId || (isSuperAdmin ? 'superadmin' : (currentClientId || clientSub?.id || 'client-default'))
+    } : c));
   };
 
   const handleDeleteCiterne = (id: string) => {
@@ -1041,12 +1075,13 @@ export default function App() {
 
   // --- STOCK ENTRIES (LIVRAISONS / DÉPOTAGES) ---
   const handleAddStockEntry = (newEntryData: Omit<StockEntry, 'id'>) => {
-    const activeCId = currentClientId || (clientSub?.id || 'client-default');
+    const activeCId = isSuperAdmin ? 'superadmin' : (currentClientId || clientSub?.id || currentUser?.clientId || 'client-default');
+    const activeEnt = isSuperAdmin ? 'Super Admin' : (currentEnterprise || currentUser?.entreprise || clientSub?.entreprise || 'Dépôt Principal');
     const newEntry: StockEntry = {
       ...newEntryData,
       id: `ent-${Date.now()}`,
       clientId: activeCId,
-      entreprise: currentEnterprise
+      entreprise: activeEnt
     };
     setEntries(prev => [newEntry, ...prev]);
 
@@ -1073,7 +1108,7 @@ export default function App() {
         message: `Réception de ${newEntry.quantiteLivree.toLocaleString('fr-FR')} L de ${newEntry.fournisseur} dans ${targetC?.code || 'citerne'}.`,
         citerneCode: targetC?.code,
         clientId: activeCId,
-        entreprise: currentEnterprise
+        entreprise: activeEnt
       },
       ...prev
     ]);
@@ -1113,12 +1148,13 @@ export default function App() {
 
   // --- FUEL DISPENSES (SORTIES / PLEINS) ---
   const handleAddDispense = (newDispenseData: Omit<FuelDispense, 'id'>) => {
-    const activeCId = currentClientId || (clientSub?.id || 'client-default');
+    const activeCId = isSuperAdmin ? 'superadmin' : (currentClientId || clientSub?.id || currentUser?.clientId || 'client-default');
+    const activeEnt = isSuperAdmin ? 'Super Admin' : (currentEnterprise || currentUser?.entreprise || clientSub?.entreprise || 'Dépôt Principal');
     const newDispense: FuelDispense = {
       ...newDispenseData,
       id: `dsp-${Date.now()}`,
       clientId: activeCId,
-      entreprise: currentEnterprise
+      entreprise: activeEnt
     };
     setDispenses(prev => [newDispense, ...prev]);
 
@@ -1216,12 +1252,13 @@ export default function App() {
 
   // --- VEHICLES CRUD ---
   const handleAddVehicle = (newVeh: Omit<Vehicle, 'id'>) => {
-    const activeCId = currentClientId || (clientSub?.id || 'client-default');
+    const activeCId = isSuperAdmin ? 'superadmin' : (currentClientId || clientSub?.id || currentUser?.clientId || 'client-default');
+    const activeEnt = isSuperAdmin ? 'Super Admin' : (currentEnterprise || currentUser?.entreprise || clientSub?.entreprise || 'Dépôt Principal');
     const v: Vehicle = {
       ...newVeh,
       id: `veh-${Date.now()}`,
       clientId: activeCId,
-      entreprise: currentEnterprise
+      entreprise: activeEnt
     };
     setVehicles(prev => [...prev, v]);
   };
@@ -1235,11 +1272,12 @@ export default function App() {
   };
 
   const handleImportVehicles = (imported: Vehicle[]) => {
-    const activeCId = currentClientId || (clientSub?.id || 'client-default');
+    const activeCId = isSuperAdmin ? 'superadmin' : (currentClientId || clientSub?.id || currentUser?.clientId || 'client-default');
+    const activeEnt = isSuperAdmin ? 'Super Admin' : (currentEnterprise || currentUser?.entreprise || clientSub?.entreprise || 'Dépôt Principal');
     const tagged = imported.map(v => ({
       ...v,
       clientId: activeCId,
-      entreprise: currentEnterprise
+      entreprise: activeEnt
     }));
     setVehicles(prev => [...tagged, ...prev]);
   };
@@ -1295,12 +1333,13 @@ export default function App() {
 
   // --- FOURNISSEURS CRUD ---
   const handleAddFournisseur = (newFrsData: Omit<Fournisseur, 'id'>) => {
-    const activeCId = currentClientId || (clientSub?.id || 'client-default');
+    const activeCId = isSuperAdmin ? 'superadmin' : (currentClientId || clientSub?.id || currentUser?.clientId || 'client-default');
+    const activeEnt = isSuperAdmin ? 'Super Admin' : (currentEnterprise || currentUser?.entreprise || clientSub?.entreprise || 'Dépôt Principal');
     const frs: Fournisseur = {
       ...newFrsData,
       id: `frs-${Date.now()}`,
       clientId: activeCId,
-      entreprise: currentEnterprise
+      entreprise: activeEnt
     };
     setFournisseurs(prev => [...prev, frs]);
   };
@@ -1315,12 +1354,13 @@ export default function App() {
 
   // --- VEHICLE TYPES CRUD ---
   const handleAddVehicleType = (newVtData: Omit<VehicleTypeConfig, 'id'>) => {
-    const activeCId = currentClientId || (clientSub?.id || 'client-default');
+    const activeCId = isSuperAdmin ? 'superadmin' : (currentClientId || clientSub?.id || currentUser?.clientId || 'client-default');
+    const activeEnt = isSuperAdmin ? 'Super Admin' : (currentEnterprise || currentUser?.entreprise || clientSub?.entreprise || 'Dépôt Principal');
     const vt: VehicleTypeConfig = {
       ...newVtData,
       id: `vt-${Date.now()}`,
       clientId: activeCId,
-      entreprise: currentEnterprise
+      entreprise: activeEnt
     };
     setVehicleTypes(prev => [...prev, vt]);
   };
