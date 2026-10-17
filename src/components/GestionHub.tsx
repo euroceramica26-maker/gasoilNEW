@@ -16,6 +16,7 @@ import { VehicleTypesModule } from './VehicleTypesModule';
 import { ThemeSelectorModule } from './ThemeSelectorModule';
 import { LocalStorageModule } from './LocalStorageModule';
 import { CloudBackendModule } from './CloudBackendModule';
+import { ClientCompanySettingsModule } from './ClientCompanySettingsModule';
 import { 
   Settings, 
   Users, 
@@ -32,6 +33,7 @@ import { StockEntry, FuelDispense } from '../types';
 
 export type GestionSubTab = 
   | 'utilisateurs' 
+  | 'coordonnees_client'
   | 'citernes' 
   | 'types_engins' 
   | 'fournisseurs' 
@@ -91,6 +93,7 @@ interface GestionHubProps {
   onResetDemo: () => void;
   onSaveToGasoilProDisk?: () => Promise<{ success: boolean; message: string; path?: string }>;
   onLoadFromGasoilProDisk?: () => Promise<{ success: boolean; message: string }>;
+  onUpdateSubscription?: (sub: Subscription) => void;
   // Cloud sync
   entries?: StockEntry[];
   dispenses?: FuelDispense[];
@@ -139,6 +142,7 @@ export const GestionHub: React.FC<GestionHubProps> = ({
   onResetDemo,
   onSaveToGasoilProDisk,
   onLoadFromGasoilProDisk,
+  onUpdateSubscription,
   entries = [],
   dispenses = [],
   onDataLoadedFromCloud
@@ -167,6 +171,13 @@ export const GestionHub: React.FC<GestionHubProps> = ({
       icon: isRegularUser ? UserCheck : Users,
       count: isRegularUser ? 1 : users.length,
       badgeColor: 'text-purple-400 bg-purple-950/80 border-purple-500/30'
+    },
+    {
+      id: 'coordonnees_client' as GestionSubTab,
+      label: 'En-tête & Coordonnées Client',
+      icon: Building2,
+      count: '🇲🇦',
+      badgeColor: 'text-amber-400 bg-amber-950/80 border-amber-500/30'
     },
     {
       id: 'citernes' as GestionSubTab,
@@ -277,6 +288,14 @@ export const GestionHub: React.FC<GestionHubProps> = ({
             onAddUser={onAddUser}
             onUpdateUser={onUpdateUser}
             onDeleteUser={onDeleteUser}
+          />
+        )}
+
+        {activeSubTab === 'coordonnees_client' && (
+          <ClientCompanySettingsModule
+            currentUser={currentUser}
+            subscriptions={subscriptions}
+            onUpdateSubscription={onUpdateSubscription}
           />
         )}
 

@@ -172,6 +172,7 @@ export interface User {
   entreprise?: string; // Entreprise cliente associée
   isClientAdmin?: boolean; // Indicateur administrateur de client
   createdBy?: string; // Login ou ID de l'administrateur créateur (isolation stricte par compte client)
+  ville?: string;
 }
 
 export interface Repair {
@@ -258,8 +259,28 @@ export interface Subscription {
   clientAdminPassword?: string; // Mot de passe de l'admin client
   clientAdminNom?: string; // Nom & prénom de l'admin client
   clientAdminEmail?: string; // Email de l'admin client
-  clientAdminTelephone?: string; // Téléphone direct
+  clientAdminTelephone?: string; // Téléphone de l'admin client
   licensePermissions?: UserPermissions; // Autorisations spécifiques accordées pour cette licence par le Super Admin
+  // Informations légales & fiscales client pour les documents d'impression (Bons de réception, Sorties, Rapports)
+  ice?: string; // ICE client (ex: 003124567000012)
+  rc?: string; // Registre de Commerce client (ex: RC Casablanca 584920)
+  identifiantFiscal?: string; // IF client (ex: 49281045)
+  adresse?: string; // Adresse du site ou siège
+  depot?: string; // Nom du dépôt ou complexe d'hydrocarbures client
+  activite?: string; // Activité ou précision métrologique
+}
+
+export interface ClientCompanyInfo {
+  entreprise: string;
+  depot: string;
+  adresse: string;
+  ville: string;
+  ice: string;
+  rc: string;
+  identifiantFiscal: string;
+  telephone: string;
+  email: string;
+  sousTitre: string;
 }
 
 export interface SecurityConfig {

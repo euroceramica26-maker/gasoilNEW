@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { FuelDispense, Vehicle, Citerne, User, VehicleTypeConfig } from '../types';
+import { FuelDispense, Vehicle, Citerne, User, VehicleTypeConfig, Subscription } from '../types';
+import { resolveClientCompanyInfo } from '../lib/clientCompanyUtils';
 import { 
   BarChart3, 
   FileSpreadsheet, 
@@ -32,6 +33,7 @@ interface FuelExitReportsModuleProps {
   citernes: Citerne[];
   vehicleTypes?: VehicleTypeConfig[];
   currentUser?: User | null;
+  subscriptions?: Subscription[];
   onNavigateToDispenses?: () => void;
 }
 
@@ -43,6 +45,7 @@ export const FuelExitReportsModule: React.FC<FuelExitReportsModuleProps> = ({
   citernes,
   vehicleTypes = [],
   currentUser,
+  subscriptions = [],
   onNavigateToDispenses
 }) => {
   const [viewMode, setViewMode] = useState<ReportViewMode>('mois');
@@ -53,6 +56,13 @@ export const FuelExitReportsModule: React.FC<FuelExitReportsModuleProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [exportSuccessToast, setExportSuccessToast] = useState<string | null>(null);
+
+  // Résolution dynamique des coordonnées et identifiants fiscaux du compte client
+  const clientInfo = resolveClientCompanyInfo({
+    currentUser,
+    subscriptions,
+    activeLicenseKey: typeof window !== 'undefined' ? localStorage.getItem('hg_active_license') || '' : ''
+  });
 
   // Densité moyenne standard pour conversion masse en kg (0.840 kg/L à 15°C)
   const STANDARD_DENSITY = 0.840;
@@ -403,8 +413,11 @@ export const FuelExitReportsModule: React.FC<FuelExitReportsModuleProps> = ({
     const rows: string[] = [];
     const dateStr = new Date().toISOString().slice(0, 10);
 
-    // En-tête métrologique officiel
-    rows.push('# ROYAUME DU MAROC - RAPPORT OFFICIEL DES SORTIES DE GASOIL');
+    // En-tête métrologique officiel avec coordonnées du compte client
+    rows.push(`# ROYAUME DU MAROC - RAPPORT OFFICIEL DES SORTIES DE GASOIL`);
+    rows.push(`# COMPTE CLIENT: ${clientInfo.entreprise.toUpperCase()}`);
+    rows.push(`# SITE / DÉPÔT: ${clientInfo.depot} | ADRESSE: ${clientInfo.adresse}`);
+    rows.push(`# IDENTIFIANTS: ICE: ${clientInfo.ice} | ${clientInfo.rc} | ${clientInfo.identifiantFiscal}`);
     rows.push(`# Date de génération: ${new Date().toLocaleString('fr-FR')}`);
     rows.push(`# Filtre Mois: ${selectedMonth === 'all' ? 'Tous les mois' : selectedMonth}; Filtre Engin: ${selectedEnginType}; Filtre Véhicule: ${selectedVehicleId}`);
     rows.push(`# Total Volume: ${kpis.totalLitres.toFixed(1)} L; Total Poids: ${kpis.totalPoidsKg.toFixed(1)} kg (${kpis.totalPoidsTonnes.toFixed(3)} Tonnes)`);
@@ -1346,17 +1359,21 @@ export const FuelExitReportsModule: React.FC<FuelExitReportsModuleProps> = ({
                     <div className="text-[11px] font-bold text-slate-700 uppercase tracking-widest">
                       🇲🇦 ROYAUME DU MAROC
                     </div>
-                    <div className="text-base font-extrabold text-slate-900">
-                      GasoilPro MAROC • Supervision & Contrôle Métrologique
+                    <div className="text-base font-extrabold text-slate-900 uppercase">
+                      {clientInfo.entreprise}
                     </div>
-                    <div className="text-[10px] text-slate-500">
-                      Direction Technique & Gestion des Stocks d'Hydrocarbures
+                    <div className="text-[11px] text-slate-700 font-semibold">
+                      {clientInfo.depot}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-mono-num">
+                      ICE: {clientInfo.ice} • {clientInfo.rc} • {clientInfo.identifiantFiscal}{clientInfo.telephone ? ` • Tél: ${clientInfo.telephone}` : ''}
                     </div>
                   </div>
                   <div className="text-right text-[10px] text-slate-600">
                     <div>Date d'émission : <strong>{new Date().toLocaleDateString('fr-FR')}</strong></div>
                     <div>Heure : <strong>{new Date().toLocaleTimeString('fr-FR')}</strong></div>
                     <div>Opérateur : <strong>{currentUser?.nom || 'Admin'} ({currentUser?.role || 'Supervision'})</strong></div>
+                    <div className="text-[9px] text-slate-400 mt-0.5">{clientInfo.adresse}</div>
                   </div>
                 </div>
 

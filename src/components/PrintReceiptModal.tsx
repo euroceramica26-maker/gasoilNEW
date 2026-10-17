@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { StockEntry, FuelDispense, Citerne, Vehicle } from '../types';
-import { Printer, X, CheckCircle, FileText, Download, CheckCircle2, Sliders, ExternalLink, Scale } from 'lucide-react';
+import { StockEntry, FuelDispense, Citerne, Vehicle, User, Subscription, ClientCompanyInfo } from '../types';
+import { resolveClientCompanyInfo, saveClientCompanyDetails } from '../lib/clientCompanyUtils';
+import { Printer, X, CheckCircle, FileText, Download, CheckCircle2, Sliders, ExternalLink, Scale, Building2, Edit3, Save, MapPin, ShieldCheck, Phone } from 'lucide-react';
 
 interface PrintReceiptModalProps {
   type: 'entree' | 'sortie';
   data: StockEntry | FuelDispense;
   citernes: Citerne[];
   vehicles?: Vehicle[];
+  currentUser?: User | null;
+  subscriptions?: Subscription[];
   onClose: () => void;
 }
 
@@ -15,10 +18,34 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
   data,
   citernes,
   vehicles = [],
+  currentUser,
+  subscriptions = [],
   onClose
 }) => {
   const [printFormat, setPrintFormat] = useState<'a4' | 'ticket80'>('a4');
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
+
+  // Résolution dynamique des informations légales & coordonnées du compte client
+  const baseClientInfo = resolveClientCompanyInfo({
+    data,
+    subscriptions,
+    currentUser,
+    activeLicenseKey: typeof window !== 'undefined' ? localStorage.getItem('hg_active_license') || '' : ''
+  });
+
+  const [clientInfo, setClientInfo] = useState<ClientCompanyInfo>(baseClientInfo);
+  const [editFormData, setEditFormData] = useState<ClientCompanyInfo>(baseClientInfo);
+
+  const handleSaveClientHeader = (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetId = (data as any)?.clientId || currentUser?.clientId || 'default';
+    saveClientCompanyDetails(targetId, editFormData, subscriptions);
+    setClientInfo(editFormData);
+    setIsEditClientModalOpen(false);
+    setFeedback(`En-tête de document mis à jour pour « ${editFormData.entreprise} » !`);
+    setTimeout(() => setFeedback(null), 4000);
+  };
 
   const isEntree = type === 'entree';
   const entry = isEntree ? (data as StockEntry) : null;
@@ -251,10 +278,10 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
     <div class="header">
       <div>
         <div style="font-size: 10px; font-weight: 700; color: #b91c1c; letter-spacing: 1px; text-transform: uppercase;">🇲🇦 ROYAUME DU MAROC</div>
-        <h2 style="margin: 1px 0 0 0; font-size: ${isA4 ? '18px' : '14px'}; font-weight: 800; color: #0f172a; text-transform: uppercase;">HYDRO-GASOIL MAROC</h2>
-        <div style="font-size: 10px; color: #475569; margin-top: 2px;">Complexe Industriel & Dépôt d’Hydrocarbures • Mohammedia / Jorf Lasfar</div>
-        <div style="font-size: 9px; color: #64748b;">Contrôle Métrologique & Spécifications Marocaines Gasoil 10ppm</div>
-        <div style="font-size: 8px; color: #94a3b8; margin-top: 2px; font-family: monospace;">ICE: 002849102000084 • RC: 492019 Casablanca • IF: 38102948</div>
+        <h2 style="margin: 1px 0 0 0; font-size: ${isA4 ? '18px' : '14px'}; font-weight: 800; color: #0f172a; text-transform: uppercase;">${clientInfo.entreprise}</h2>
+        <div style="font-size: 10px; color: #475569; margin-top: 2px;">${clientInfo.depot}</div>
+        <div style="font-size: 9px; color: #64748b;">${clientInfo.sousTitre} • ${clientInfo.adresse}</div>
+        <div style="font-size: 8px; color: #94a3b8; margin-top: 2px; font-family: monospace;">ICE: ${clientInfo.ice} • ${clientInfo.rc} • ${clientInfo.identifiantFiscal}${clientInfo.telephone ? ` • Tél: ${clientInfo.telephone}` : ''}${clientInfo.email ? ` • Email: ${clientInfo.email}` : ''}</div>
       </div>
       <div style="text-align: right;">
         <div style="background: #0f172a; color: white; padding: 4px 8px; font-weight: bold; font-family: monospace; font-size: 12px; display: inline-block;">${docRef}</div>
@@ -410,6 +437,20 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
               </button>
             </div>
 
+            {/* Edit Client Header Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setEditFormData(clientInfo);
+                setIsEditClientModalOpen(true);
+              }}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 border border-amber-500/30 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition cursor-pointer"
+              title="Personnaliser les informations de ce compte client sur le document"
+            >
+              <Building2 className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Coordonnées Client</span>
+            </button>
+
             {/* Print Button */}
             <button
               type="button"
@@ -469,20 +510,23 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
               printFormat === 'ticket80' ? 'max-w-sm' : 'max-w-xl'
             }`}
           >
-            {/* Plant Header */}
+            {/* En-tête officiel avec coordonnées du compte client */}
             <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-4">
               <div>
                 <div className="text-[10px] font-bold text-red-600 tracking-wider uppercase flex items-center gap-1">
                   <span>🇲🇦 ROYAUME DU MAROC</span>
                 </div>
                 <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-950 uppercase font-industrial mt-0.5">
-                  HYDRO-GASOIL MAROC
+                  {clientInfo.entreprise}
                 </h1>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Complexe Industriel & Dépôt d’Hydrocarbures • Mohammedia / Jorf Lasfar
+                <p className="text-xs text-slate-700 font-semibold mt-0.5">
+                  {clientInfo.depot}
                 </p>
-                <p className="text-[11px] text-slate-500 font-mono-num">
-                  Contrôle Métrologique NM • ICE: 002849102000084 • RC Casablanca 492019
+                <p className="text-[10px] text-slate-500">
+                  {clientInfo.sousTitre} • {clientInfo.adresse}
+                </p>
+                <p className="text-[11px] text-slate-600 font-mono-num font-medium mt-0.5">
+                  ICE: {clientInfo.ice} • {clientInfo.rc} • {clientInfo.identifiantFiscal}{clientInfo.telephone ? ` • Tél: ${clientInfo.telephone}` : ''}
                 </p>
               </div>
               <div className="text-right shrink-0">
@@ -729,6 +773,176 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* MODAL: PERSONNALISATION DIRECTE DE L'EN-TÊTE CLIENT */}
+      {isEditClientModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in no-print">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-amber-400" />
+                <h3 className="font-bold text-slate-100 text-sm">
+                  Coordonnées & En-tête du Compte Client
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditClientModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveClientHeader} className="p-4 space-y-3 overflow-y-auto text-xs">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  Raison Sociale / Nom de l'Entreprise Cliente *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editFormData.entreprise}
+                  onChange={e => setEditFormData({ ...editFormData, entreprise: e.target.value })}
+                  placeholder="Ex: EUROCERAMICA MAROC SA, AFRIQUIA LOGISTIQUE..."
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-slate-100 font-semibold focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Nom du Dépôt / Site de Stockage *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.depot}
+                    onChange={e => setEditFormData({ ...editFormData, depot: e.target.value })}
+                    placeholder="Ex: Dépôt & Parc Cuves"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Ville *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.ville}
+                    onChange={e => setEditFormData({ ...editFormData, ville: e.target.value })}
+                    placeholder="Ex: Casablanca, Tanger..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Fiscal details */}
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
+                  Identifiants Fiscaux Marocains
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      N° ICE (15 chiffres)
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.ice}
+                      onChange={e => setEditFormData({ ...editFormData, ice: e.target.value })}
+                      placeholder="Ex: 003124567000012"
+                      className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-100 font-mono text-[11px] focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      N° RC
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.rc}
+                      onChange={e => setEditFormData({ ...editFormData, rc: e.target.value })}
+                      placeholder="Ex: RC Casablanca 584920"
+                      className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-100 font-mono text-[11px] focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      IF (Identifiant Fiscal)
+                    </label>
+                    <input
+                      type="text"
+                      value={editFormData.identifiantFiscal}
+                      onChange={e => setEditFormData({ ...editFormData, identifiantFiscal: e.target.value })}
+                      placeholder="Ex: IF: 49281045"
+                      className="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-slate-100 font-mono text-[11px] focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Adresse Complète
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.adresse}
+                    onChange={e => setEditFormData({ ...editFormData, adresse: e.target.value })}
+                    placeholder="Zone Industrielle..."
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                    Téléphone Direct
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.telephone}
+                    onChange={e => setEditFormData({ ...editFormData, telephone: e.target.value })}
+                    placeholder="+212 5 22 00 00 00"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-300 mb-1">
+                  Sous-titre / Spécifications Métrologiques
+                </label>
+                <input
+                  type="text"
+                  value={editFormData.sousTitre}
+                  onChange={e => setEditFormData({ ...editFormData, sousTitre: e.target.value })}
+                  placeholder="Spécifications Métrologiques & Contrôle Carburant Gasoil 10ppm"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsEditClientModalOpen(false)}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg flex items-center gap-1.5 shadow"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Appliquer au Document</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

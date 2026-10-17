@@ -1829,6 +1829,21 @@ export default function App() {
                       </button>
 
                       <button
+                        onClick={() => handleNavigateToGestion('coordonnees_client')}
+                        className={`w-full px-3 py-2.5 text-left flex items-center justify-between text-xs hover:bg-slate-800 transition ${
+                          activeTab === 'gestion' && gestionSubTab === 'coordonnees_client' ? 'text-amber-400 font-bold bg-slate-800/60' : 'text-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-amber-400" />
+                          <span>2. Coordonnées & En-tête Client</span>
+                        </div>
+                        <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold border border-amber-500/30">
+                          Bons & Tickets
+                        </span>
+                      </button>
+
+                      <button
                         onClick={() => handleNavigateToGestion('citernes')}
                         className={`w-full px-3 py-2.5 text-left flex items-center justify-between text-xs hover:bg-slate-800 transition ${
                           activeTab === 'gestion' && gestionSubTab === 'citernes' ? 'text-amber-400 font-bold bg-slate-800/60' : 'text-slate-200'
@@ -1836,7 +1851,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-2">
                           <Layers className="w-4 h-4 text-amber-400" />
-                          <span>2. Gestion Citernes</span>
+                          <span>3. Gestion Citernes</span>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono-num bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
                           {visibleCiternes.length}
@@ -1851,7 +1866,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-2">
                           <SlidersHorizontal className="w-4 h-4 text-blue-400" />
-                          <span>3. Types d'Engins</span>
+                          <span>4. Types d'Engins</span>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono-num bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
                           {visibleVehicleTypes.length}
@@ -1866,7 +1881,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-2">
                           <Building2 className="w-4 h-4 text-emerald-400" />
-                          <span>4. Gestion Fournisseurs</span>
+                          <span>5. Gestion Fournisseurs</span>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono-num bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
                           {visibleFournisseurs.length}
@@ -1881,7 +1896,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-2">
                           <Truck className="w-4 h-4 text-cyan-400" />
-                          <span>5. Parc Véhicules & Flotte</span>
+                          <span>6. Parc Véhicules & Flotte</span>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono-num bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">
                           {visibleVehicles.length}
@@ -2217,6 +2232,18 @@ export default function App() {
                     <span className="font-mono-num text-[10px] text-slate-400">({isSuperAdmin ? users.length : clientVisibleUsers.length})</span>
                   </button>
                   <button
+                    onClick={() => handleNavigateToGestion('coordonnees_client')}
+                    className={`w-full text-left px-3 py-2 rounded-lg flex items-center justify-between font-semibold ${
+                      activeTab === 'gestion' && gestionSubTab === 'coordonnees_client' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-amber-400" />
+                      <span>2. Coordonnées & En-tête Client</span>
+                    </div>
+                    <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded font-bold border border-amber-500/30">Bons & Tickets</span>
+                  </button>
+                  <button
                     onClick={() => handleNavigateToGestion('citernes')}
                     className={`w-full text-left px-3 py-2 rounded-lg flex items-center justify-between font-semibold ${
                       activeTab === 'gestion' && gestionSubTab === 'citernes' ? 'bg-amber-500 text-slate-950 font-bold' : 'text-slate-300'
@@ -2224,7 +2251,7 @@ export default function App() {
                   >
                     <div className="flex items-center gap-2">
                       <Layers className="w-4 h-4 text-amber-400" />
-                      <span>2. Gestion Citernes</span>
+                      <span>3. Gestion Citernes</span>
                     </div>
                     <span className="font-mono-num text-[10px] text-slate-400">({citernes.length})</span>
                   </button>
@@ -2236,7 +2263,7 @@ export default function App() {
                   >
                     <div className="flex items-center gap-2">
                       <SlidersHorizontal className="w-4 h-4 text-blue-400" />
-                      <span>3. Types d'Engins</span>
+                      <span>4. Types d'Engins</span>
                     </div>
                     <span className="font-mono-num text-[10px] text-slate-400">({vehicleTypes.length})</span>
                   </button>
@@ -2354,6 +2381,7 @@ export default function App() {
             citernes={visibleCiternes}
             fournisseurs={visibleFournisseurs}
             currentUser={currentUser}
+            subscriptions={subscriptions}
             onAddStockEntry={handleAddStockEntry}
             onDeleteStockEntry={handleDeleteStockEntry}
           />
@@ -2364,6 +2392,8 @@ export default function App() {
             dispenses={visibleDispenses}
             vehicles={visibleVehicles}
             citernes={visibleCiternes}
+            currentUser={currentUser}
+            subscriptions={subscriptions}
             onAddDispense={handleAddDispense}
             onDeleteDispense={handleDeleteDispense}
             onOpenReports={() => setActiveTab('reports')}
@@ -2378,6 +2408,7 @@ export default function App() {
             citernes={visibleCiternes}
             vehicleTypes={visibleVehicleTypes}
             currentUser={currentUser}
+            subscriptions={subscriptions}
             onNavigateToDispenses={() => setActiveTab('dispenses')}
           />
         )}
@@ -2439,6 +2470,7 @@ export default function App() {
             onResetDemo={handlePerformReset}
             onSaveToGasoilProDisk={handleSaveToGasoilProDisk}
             onLoadFromGasoilProDisk={handleLoadFromGasoilProDisk}
+            onUpdateSubscription={(sub) => handleUpdateSubscription(sub.id, sub)}
             entries={visibleEntries}
             dispenses={visibleDispenses}
             onDataLoadedFromCloud={handleDataLoadedFromCloud}

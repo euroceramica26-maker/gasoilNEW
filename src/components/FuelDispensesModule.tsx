@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FuelDispense, Vehicle, Citerne } from '../types';
+import { FuelDispense, Vehicle, Citerne, User, Subscription } from '../types';
 import { SignaturePad } from './SignaturePad';
 import { PrintReceiptModal } from './PrintReceiptModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -11,7 +11,7 @@ import {
   CheckCircle2, 
   TrendingUp, 
   Calendar, 
-  User, 
+  User as UserIcon, 
   Gauge, 
   X, 
   FileSignature, 
@@ -27,6 +27,8 @@ interface FuelDispensesModuleProps {
   dispenses: FuelDispense[];
   vehicles: Vehicle[];
   citernes: Citerne[];
+  currentUser?: User | null;
+  subscriptions?: Subscription[];
   onAddDispense: (dispense: Omit<FuelDispense, 'id'>) => void;
   onDeleteDispense?: (id: string, restoreTankStock: boolean) => void;
   onOpenReports?: () => void;
@@ -36,6 +38,8 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
   dispenses,
   vehicles,
   citernes,
+  currentUser,
+  subscriptions = [],
   onAddDispense,
   onDeleteDispense,
   onOpenReports
@@ -197,7 +201,9 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
       surconsommationAlerte: isOverconsumption,
       signatureChauffeur,
       signaturePompiste,
-      remarques
+      remarques,
+      clientId: currentUser?.clientId || currentCiterne?.clientId || currentVehicle?.clientId || (subscriptions.length === 1 ? subscriptions[0].id : undefined),
+      entreprise: currentUser?.entreprise || currentCiterne?.entreprise || currentVehicle?.entreprise || (subscriptions.length === 1 ? subscriptions[0].entreprise : undefined)
     };
 
     onAddDispense(newDispense);
@@ -818,6 +824,8 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
           data={selectedDispenseForPrint}
           citernes={citernes}
           vehicles={vehicles}
+          currentUser={currentUser}
+          subscriptions={subscriptions}
           onClose={() => setSelectedDispenseForPrint(null)}
         />
       )}

@@ -67,6 +67,7 @@ import {
 
 import { ConfirmModal } from './ConfirmModal';
 import { MOROCCO_CITIES, ALL_MOROCCO_CITY_NAMES } from '../data/moroccoCities';
+import { generateDeterministicIce } from '../lib/clientCompanyUtils';
 
 interface MasterControlModuleProps {
   subscriptions: Subscription[];
@@ -160,6 +161,13 @@ export const MasterControlModule: React.FC<MasterControlModuleProps> = ({
   const [newLicenseKey, setNewLicenseKey] = useState(() => generate36CharLicenseKey(true, 'HGMA'));
   const [newNotes, setNewNotes] = useState('');
   
+  // Client Company Legal & Receipt Details
+  const [newIce, setNewIce] = useState('');
+  const [newRc, setNewRc] = useState('');
+  const [newIf, setNewIf] = useState('');
+  const [newDepot, setNewDepot] = useState('');
+  const [newAdresse, setNewAdresse] = useState('');
+  
   // Dedicated Client Admin Form State
   const [createAdminForClient, setCreateAdminForClient] = useState(true);
   const [newAdminLogin, setNewAdminLogin] = useState('');
@@ -186,6 +194,11 @@ export const MasterControlModule: React.FC<MasterControlModuleProps> = ({
     ville: string;
     statut: 'Actif' | 'Inactif' | 'Suspendu';
     permissions: UserPermissions;
+    ice?: string;
+    rc?: string;
+    identifiantFiscal?: string;
+    depot?: string;
+    adresse?: string;
   } | null>(null);
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [adminSuccessToast, setAdminSuccessToast] = useState<string | null>(null);
@@ -348,7 +361,12 @@ export const MasterControlModule: React.FC<MasterControlModuleProps> = ({
       clientAdminNom: adminUser ? `${adminUser.prenom} ${adminUser.nom}` : undefined,
       clientAdminEmail: adminUser?.email,
       clientAdminTelephone: adminUser?.telephone,
-      licensePermissions: newLicensePermissions
+      licensePermissions: newLicensePermissions,
+      ice: newIce.trim() || generateDeterministicIce(newEntreprise.trim()),
+      rc: newRc.trim() || `RC ${newVille.trim()} 492019`,
+      identifiantFiscal: newIf.trim() || 'IF: 38102948',
+      depot: newDepot.trim() || `Complexe Industriel & Dépôt d’Hydrocarbures • ${newVille.trim()}`,
+      adresse: newAdresse.trim() || `Zone Industrielle • ${newVille.trim()}`
     };
 
     onAddSubscription(sub, adminUser);
@@ -366,6 +384,11 @@ export const MasterControlModule: React.FC<MasterControlModuleProps> = ({
     setNewAdminLogin('');
     setNewAdminPassword('');
     setNewAdminNom('');
+    setNewIce('');
+    setNewRc('');
+    setNewIf('');
+    setNewDepot('');
+    setNewAdresse('');
   };
 
   // Open modal to configure client admin and license permissions for an existing subscription
@@ -397,7 +420,12 @@ export const MasterControlModule: React.FC<MasterControlModuleProps> = ({
       telephone: existingUser?.telephone || sub.clientAdminTelephone || sub.telephone,
       ville: sub.ville || 'Mohammedia',
       statut: (existingUser?.statut as any) || 'Actif',
-      permissions: JSON.parse(JSON.stringify(permissions))
+      permissions: JSON.parse(JSON.stringify(permissions)),
+      ice: sub.ice || generateDeterministicIce(sub.entreprise),
+      rc: sub.rc || `RC ${sub.ville || 'Casablanca'} 492019`,
+      identifiantFiscal: sub.identifiantFiscal || 'IF: 38102948',
+      depot: sub.depot || `Complexe Industriel & Dépôt d’Hydrocarbures • ${sub.ville || 'Maroc'}`,
+      adresse: sub.adresse || `Zone Industrielle • ${sub.ville || 'Maroc'}`
     });
     setShowEditPassword(false);
     setEditingClientAdminSub(sub);
@@ -427,7 +455,12 @@ export const MasterControlModule: React.FC<MasterControlModuleProps> = ({
       clientAdminNom: `${adminUser.prenom} ${adminUser.nom}`,
       clientAdminEmail: adminUser.email,
       clientAdminTelephone: adminUser.telephone,
-      licensePermissions: editAdminForm.permissions
+      licensePermissions: editAdminForm.permissions,
+      ice: editAdminForm.ice?.trim(),
+      rc: editAdminForm.rc?.trim(),
+      identifiantFiscal: editAdminForm.identifiantFiscal?.trim(),
+      depot: editAdminForm.depot?.trim(),
+      adresse: editAdminForm.adresse?.trim()
     };
 
     onUpdateSubscription(sub.id, updatedSub, adminUser);
@@ -452,7 +485,7 @@ export const MasterControlModule: React.FC<MasterControlModuleProps> = ({
     const activeOptions = Object.entries(perms.options).filter(([_, v]) => v).length;
 
     const text = `================================================
-HYDRO-GASOIL PRO — ACCÈS ADMINISTRATEUR CLIENT
+GASOILPRO MAROC — ACCÈS ADMINISTRATEUR CLIENT
 ================================================
 🏢 Entreprise : ${sub.entreprise}
 📍 Ville : ${sub.ville}
@@ -944,6 +977,74 @@ HYDRO-GASOIL PRO — ACCÈS ADMINISTRATEUR CLIENT
                         placeholder="Chef de Dépôt, DG..."
                         className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-amber-500"
                       />
+                    </div>
+                  </div>
+
+                  {/* Coordonnées Métrologiques & Légales Client pour les Bons & Tickets */}
+                  <div className="p-3.5 bg-slate-950/80 rounded-xl border border-slate-800/80 space-y-3">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                      En-tête des Documents & Mentions Légales du Client (Bons de Réception & Sorties)
+                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">N° ICE (15 chiffres)</label>
+                        <input
+                          type="text"
+                          value={newIce}
+                          onChange={(e) => setNewIce(e.target.value)}
+                          placeholder="Ex: 003124567000012"
+                          maxLength={18}
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs font-mono focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">N° RC (Registre Commerce)</label>
+                        <input
+                          type="text"
+                          value={newRc}
+                          onChange={(e) => setNewRc(e.target.value)}
+                          placeholder={`Ex: RC ${newVille || 'Casablanca'} 584920`}
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs font-mono focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">Identifiant Fiscal (IF)</label>
+                        <input
+                          type="text"
+                          value={newIf}
+                          onChange={(e) => setNewIf(e.target.value)}
+                          placeholder="IF: 38102948"
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs font-mono focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">Nom du Dépôt / Cuves Client</label>
+                        <input
+                          type="text"
+                          value={newDepot}
+                          onChange={(e) => setNewDepot(e.target.value)}
+                          placeholder={`Complexe & Dépôt d’Hydrocarbures • ${newVille}`}
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">Adresse du Site</label>
+                        <input
+                          type="text"
+                          value={newAdresse}
+                          onChange={(e) => setNewAdresse(e.target.value)}
+                          placeholder={`Zone Industrielle & Dépôt • ${newVille}`}
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1851,6 +1952,74 @@ HYDRO-GASOIL PRO — ACCÈS ADMINISTRATEUR CLIENT
                     </div>
                   </div>
 
+                  {/* Coordonnées Métrologiques & Légales Client pour les Bons & Tickets */}
+                  <div className="p-4 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-3">
+                    <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                      En-tête des Documents & Coordonnées de l'Entreprise Cliente (Bons & Rapports)
+                    </span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">N° ICE (15 chiffres)</label>
+                        <input
+                          type="text"
+                          value={editAdminForm.ice || ''}
+                          onChange={(e) => setEditAdminForm({ ...editAdminForm, ice: e.target.value })}
+                          placeholder="Ex: 003124567000012"
+                          maxLength={18}
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs font-mono focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">N° RC (Registre Commerce)</label>
+                        <input
+                          type="text"
+                          value={editAdminForm.rc || ''}
+                          onChange={(e) => setEditAdminForm({ ...editAdminForm, rc: e.target.value })}
+                          placeholder={`Ex: RC ${editAdminForm.ville || 'Casablanca'} 584920`}
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs font-mono focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">Identifiant Fiscal (IF)</label>
+                        <input
+                          type="text"
+                          value={editAdminForm.identifiantFiscal || ''}
+                          onChange={(e) => setEditAdminForm({ ...editAdminForm, identifiantFiscal: e.target.value })}
+                          placeholder="IF: 38102948"
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs font-mono focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">Nom du Dépôt / Cuves Client</label>
+                        <input
+                          type="text"
+                          value={editAdminForm.depot || ''}
+                          onChange={(e) => setEditAdminForm({ ...editAdminForm, depot: e.target.value })}
+                          placeholder={`Complexe & Dépôt d’Hydrocarbures • ${editAdminForm.ville}`}
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-slate-400 block mb-1 font-semibold text-[11px]">Adresse du Site</label>
+                        <input
+                          type="text"
+                          value={editAdminForm.adresse || ''}
+                          onChange={(e) => setEditAdminForm({ ...editAdminForm, adresse: e.target.value })}
+                          placeholder={`Zone Industrielle & Dépôt • ${editAdminForm.ville}`}
+                          className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* License Permissions Section */}
                   <div className="p-4 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -2537,7 +2706,7 @@ HYDRO-GASOIL PRO — ACCÈS ADMINISTRATEUR CLIENT
                 <div>
                   <h4 className="font-black text-sm text-slate-900 uppercase">GASOILPRO MAROC</h4>
                   <p className="text-[10px] text-slate-600">Supervision Métrologique & Gestion Industrielle de Carburant</p>
-                  <p className="text-[10px] text-slate-500">Royaume du Maroc • Mohammedia & Jorf Lasfar</p>
+                  <p className="text-[10px] text-slate-500">Royaume du Maroc • {certificateSub.ville || 'Maroc'}</p>
                 </div>
                 <div className="text-right">
                   <span className="font-bold text-[10px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">

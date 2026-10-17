@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StockEntry, Citerne, Fournisseur, User } from '../types';
+import { StockEntry, Citerne, Fournisseur, User, Subscription } from '../types';
 import { SignaturePad } from './SignaturePad';
 import { PrintReceiptModal } from './PrintReceiptModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -10,6 +10,7 @@ interface StockEntriesModuleProps {
   citernes: Citerne[];
   fournisseurs?: Fournisseur[];
   currentUser?: User | null;
+  subscriptions?: Subscription[];
   onAddStockEntry: (entry: Omit<StockEntry, 'id'>) => void;
   onDeleteStockEntry?: (id: string, restoreTankStock: boolean) => void;
 }
@@ -19,6 +20,7 @@ export const StockEntriesModule: React.FC<StockEntriesModuleProps> = ({
   citernes,
   fournisseurs = [],
   currentUser,
+  subscriptions = [],
   onAddStockEntry,
   onDeleteStockEntry
 }) => {
@@ -68,7 +70,7 @@ export const StockEntriesModule: React.FC<StockEntriesModuleProps> = ({
       quantiteLivree: 20000,
       densiteMesuree: 0.841,
       temperatureMesuree: 18.0,
-      receptionnaireUsine: currentUser ? `${currentUser.prenom} ${currentUser.nom} (${currentUser.role})` : 'Ahmed Benali (Chef Dépôt Mohammedia)',
+      receptionnaireUsine: currentUser ? `${currentUser.prenom} ${currentUser.nom} (${currentUser.role})` : 'Responsable Réception Carburant',
       signatureBase64: '',
       notes: 'Plombage citerne conforme, test décantation fond de cuve OK.'
     });
@@ -88,11 +90,14 @@ export const StockEntriesModule: React.FC<StockEntriesModuleProps> = ({
     }
 
     const calculatedEntryPoidsKg = Math.round((Number(formData.quantiteLivree) || 0) * (Number(formData.densiteMesuree) || 0.840) * 100) / 100;
+    const targetCiterne = citernes.find(c => c.id === formData.citerneId);
 
     const newEntry: Omit<StockEntry, 'id'> = {
       ...formData,
       poidsKg: calculatedEntryPoidsKg,
-      statut: 'Validé'
+      statut: 'Validé',
+      clientId: currentUser?.clientId || targetCiterne?.clientId || (subscriptions.length === 1 ? subscriptions[0].id : undefined),
+      entreprise: currentUser?.entreprise || targetCiterne?.entreprise || (subscriptions.length === 1 ? subscriptions[0].entreprise : undefined)
     };
 
     onAddStockEntry(newEntry);
@@ -580,6 +585,8 @@ export const StockEntriesModule: React.FC<StockEntriesModuleProps> = ({
           type="entree"
           data={selectedEntryForPrint}
           citernes={citernes}
+          currentUser={currentUser}
+          subscriptions={subscriptions}
           onClose={() => setSelectedEntryForPrint(null)}
         />
       )}
