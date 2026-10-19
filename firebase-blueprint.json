@@ -143,6 +143,38 @@
       },
       "required": ["id", "licenseKey", "entreprise", "plan", "statut"]
     },
+    "Fournisseur": {
+      "title": "Fournisseur",
+      "description": "Fournisseur distributeur de carburant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nom": { "type": "string" },
+        "code": { "type": "string" },
+        "telephone": { "type": "string" },
+        "email": { "type": "string" },
+        "ville": { "type": "string" },
+        "clientId": { "type": "string" },
+        "entreprise": { "type": "string" }
+      },
+      "required": ["id", "nom"]
+    },
+    "VehicleType": {
+      "title": "VehicleType",
+      "description": "Catégorie ou type d engin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "libelle": { "type": "string" },
+        "description": { "type": "string" },
+        "consoMoyenneStandard": { "type": "number" },
+        "uniteMesure": { "type": "string" },
+        "clientId": { "type": "string" },
+        "entreprise": { "type": "string" }
+      },
+      "required": ["id", "libelle"]
+    },
     "AuditLog": {
       "title": "AuditLog",
       "description": "Journal d audit et d operations de securite",
@@ -175,6 +207,14 @@
     "/fuel_dispenses/{dispenseId}": {
       "schema": "FuelDispense",
       "description": "Distributions et pleins de carburant"
+    },
+    "/fournisseurs/{fournisseurId}": {
+      "schema": "Fournisseur",
+      "description": "Fournisseurs de gasoil"
+    },
+    "/vehicle_types/{typeId}": {
+      "schema": "VehicleType",
+      "description": "Types et catégories d engins"
     },
     "/users/{userId}": {
       "schema": "User",

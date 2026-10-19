@@ -179,6 +179,54 @@ export const firestoreService = {
     }
   },
 
+  // --- FOURNISSEURS ---
+  async syncFournisseurs(fournisseurs: Fournisseur[]): Promise<void> {
+    try {
+      const batch = writeBatch(db);
+      for (const item of fournisseurs) {
+        const ref = doc(db, 'fournisseurs', item.id);
+        batch.set(ref, item);
+      }
+      await batch.commit();
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, 'fournisseurs');
+    }
+  },
+
+  async fetchFournisseurs(): Promise<Fournisseur[]> {
+    try {
+      const snap = await getDocs(collection(db, 'fournisseurs'));
+      return snap.docs.map(d => d.data() as Fournisseur);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, 'fournisseurs');
+      return [];
+    }
+  },
+
+  // --- VEHICLE TYPES ---
+  async syncVehicleTypes(vehicleTypes: VehicleTypeConfig[]): Promise<void> {
+    try {
+      const batch = writeBatch(db);
+      for (const item of vehicleTypes) {
+        const ref = doc(db, 'vehicle_types', item.id);
+        batch.set(ref, item);
+      }
+      await batch.commit();
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, 'vehicle_types');
+    }
+  },
+
+  async fetchVehicleTypes(): Promise<VehicleTypeConfig[]> {
+    try {
+      const snap = await getDocs(collection(db, 'vehicle_types'));
+      return snap.docs.map(d => d.data() as VehicleTypeConfig);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, 'vehicle_types');
+      return [];
+    }
+  },
+
   // --- FULL CLOUD BACKEND PUSH & PULL ---
   async pushAllToCloud(data: {
     citernes: Citerne[];
@@ -196,6 +244,8 @@ export const firestoreService = {
         this.syncVehicles(data.vehicles),
         this.syncStockEntries(data.entries),
         this.syncFuelDispenses(data.dispenses),
+        this.syncFournisseurs(data.fournisseurs),
+        this.syncVehicleTypes(data.vehicleTypes),
         this.syncUsers(data.users),
         this.syncSubscriptions(data.subscriptions)
       ]);
@@ -211,14 +261,18 @@ export const firestoreService = {
     vehicles: Vehicle[];
     entries: StockEntry[];
     dispenses: FuelDispense[];
+    fournisseurs: Fournisseur[];
+    vehicleTypes: VehicleTypeConfig[];
     users: User[];
     subscriptions: Subscription[];
   }> {
-    const [citernes, vehicles, entries, dispenses, users, subscriptions] = await Promise.all([
+    const [citernes, vehicles, entries, dispenses, fournisseurs, vehicleTypes, users, subscriptions] = await Promise.all([
       this.fetchCiternes(),
       this.fetchVehicles(),
       this.fetchStockEntries(),
       this.fetchFuelDispenses(),
+      this.fetchFournisseurs(),
+      this.fetchVehicleTypes(),
       this.fetchUsers(),
       this.fetchSubscriptions()
     ]);
@@ -228,6 +282,8 @@ export const firestoreService = {
       vehicles,
       entries,
       dispenses,
+      fournisseurs,
+      vehicleTypes,
       users,
       subscriptions
     };

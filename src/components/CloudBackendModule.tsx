@@ -46,6 +46,8 @@ interface CloudBackendModuleProps {
     vehicles: Vehicle[];
     entries: StockEntry[];
     dispenses: FuelDispense[];
+    fournisseurs?: Fournisseur[];
+    vehicleTypes?: VehicleTypeConfig[];
     users: User[];
     subscriptions: Subscription[];
   }) => void;

@@ -941,6 +941,8 @@ export default function App() {
     vehicles: Vehicle[];
     entries: StockEntry[];
     dispenses: FuelDispense[];
+    fournisseurs?: Fournisseur[];
+    vehicleTypes?: VehicleTypeConfig[];
     users: User[];
     subscriptions: Subscription[];
   }) => {
@@ -948,6 +950,8 @@ export default function App() {
     if (cloudData.vehicles && cloudData.vehicles.length > 0) setVehicles(cloudData.vehicles);
     if (cloudData.entries && cloudData.entries.length > 0) setEntries(cloudData.entries);
     if (cloudData.dispenses && cloudData.dispenses.length > 0) setDispenses(cloudData.dispenses);
+    if (cloudData.fournisseurs && cloudData.fournisseurs.length > 0) setFournisseurs(cloudData.fournisseurs);
+    if (cloudData.vehicleTypes && cloudData.vehicleTypes.length > 0) setVehicleTypes(cloudData.vehicleTypes);
     if (cloudData.users && cloudData.users.length > 0) setUsers(cloudData.users);
     if (cloudData.subscriptions && cloudData.subscriptions.length > 0) setSubscriptions(cloudData.subscriptions);
   };
