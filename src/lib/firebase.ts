@@ -1,7 +1,8 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { 
-  initializeFirestore, 
+  initializeFirestore,
+  getFirestore, 
   doc, 
   getDocFromServer,
   setLogLevel 
@@ -31,11 +32,17 @@ if (typeof window !== 'undefined') {
 
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// CRITICAL: Configure with experimentalForceLongPolling to prevent 10s stream timeouts in iframe/Cloud Run environments
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-}, firebaseConfig.firestoreDatabaseId);
+// Initialize Firestore with experimentalForceLongPolling to avoid 10s WebChannel stream drops in iframes
+let firestoreInstance: ReturnType<typeof getFirestore>;
+try {
+  firestoreInstance = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+  }, firebaseConfig.firestoreDatabaseId);
+} catch {
+  firestoreInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+}
 
+export const db = firestoreInstance;
 export const auth = getAuth(app);
 
 export enum OperationType {
@@ -86,21 +93,27 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 export async function testConnection(): Promise<boolean> {
-  try {
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('the client is offline (connection timeout)')), 5000)
-    );
-    await Promise.race([
-      getDocFromServer(doc(db, 'test', 'connection')),
-      timeoutPromise
-    ]);
-    console.log('✅ Connexion Firestore Cloud établie avec succès');
-    return true;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Vérifiez la configuration réseau Firestore.');
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const snap = await getDocFromServer(doc(db, 'test', 'connection'));
+      if (snap.exists()) {
+        console.log('✅ Connexion Firestore Cloud établie avec succès');
+      }
+      return true;
+    } catch (error) {
+      if (attempt < maxAttempts) {
+        // Wait briefly for network polling initialization
+        await new Promise(r => setTimeout(r, 600 * attempt));
+        continue;
+      }
+      if (error instanceof Error && error.message.includes('the client is offline')) {
+        console.error('Please check your Firebase configuration.');
+      } else {
+        console.warn('Firestore connection check notice:', error);
+      }
+      return false;
     }
-    // Return true if reachable, or false if offline
-    return false;
   }
+  return false;
 }

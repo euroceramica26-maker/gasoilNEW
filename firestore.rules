@@ -110,7 +110,7 @@ service cloud.firestore {
 
     // Test connection document
     match /test/connection {
-      allow read: if true;
+      allow read, write: if true;
     }
   }
 }
