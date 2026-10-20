@@ -175,10 +175,14 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
             <tr style="background: #f8fafc;">
               <td style="padding: 8px; font-weight: bold;">Ratio Consommation</td>
               <td style="padding: 8px; text-align: right; font-weight: bold; color: ${dispense.surconsommationAlerte ? '#dc2626' : '#059669'};">
-                ${dispense.ratioConsommation.toFixed(2)} ${targetVehicle?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}
+                ${dispense.deltaCompteur === 0 || !dispense.ratioConsommation || dispense.ratioConsommation === 0
+                  ? 'Stationnaire (N/A)' 
+                  : `${dispense.ratioConsommation.toFixed(2)} ${targetVehicle?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}`}
               </td>
               <td style="padding: 8px; font-size: 11px; font-weight: bold; color: ${dispense.surconsommationAlerte ? '#dc2626' : '#059669'};">
-                ${dispense.surconsommationAlerte ? '⚠ ALERTE CONSO' : '✓ Conforme'}
+                ${dispense.deltaCompteur === 0 || !dispense.ratioConsommation || dispense.ratioConsommation === 0
+                  ? '✓ Plein direct' 
+                  : dispense.surconsommationAlerte ? '⚠ ALERTE CONSO' : '✓ Conforme'}
               </td>
             </tr>
           </tbody>
@@ -687,13 +691,17 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                         <td className="p-2 text-right font-mono-num">{dispense.compteurPrecedent.toLocaleString('fr-FR')}</td>
                         <td className="p-2 text-slate-600">Delta: +{dispense.deltaCompteur} {targetVehicle?.uniteMesure}</td>
                       </tr>
-                      <tr className={dispense.surconsommationAlerte ? 'bg-red-50 text-red-950 font-bold' : ''}>
+                      <tr className={dispense.surconsommationAlerte && dispense.deltaCompteur > 0 ? 'bg-red-50 text-red-950 font-bold' : ''}>
                         <td className="p-2 font-semibold">Ratio Consommation Calculé</td>
                         <td className="p-2 text-right font-mono-num font-bold">
-                          {dispense.ratioConsommation.toFixed(2)} {targetVehicle?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}
+                          {dispense.deltaCompteur === 0 || !dispense.ratioConsommation || dispense.ratioConsommation === 0
+                            ? 'Stationnaire (N/A)'
+                            : `${dispense.ratioConsommation.toFixed(2)} ${targetVehicle?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}`}
                         </td>
                         <td className="p-2">
-                          {dispense.surconsommationAlerte ? (
+                          {dispense.deltaCompteur === 0 || !dispense.ratioConsommation || dispense.ratioConsommation === 0 ? (
+                            <span className="text-slate-600 font-medium">Plein direct sans déplacement</span>
+                          ) : dispense.surconsommationAlerte ? (
                             <span className="text-red-700 font-bold">ALERTE SURCONSOMMATION</span>
                           ) : (
                             <span className="text-emerald-700 font-medium">Dans les tolérances usine</span>

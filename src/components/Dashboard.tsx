@@ -59,8 +59,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const totalCapacity = citernes.reduce((acc, c) => acc + c.capaciteTotale, 0);
   const globalPercentage = totalCapacity > 0 ? (totalStock / totalCapacity) * 100 : 0;
   
-  const totalDispensedToday = dispenses.reduce((acc, d) => acc + d.volumeLivre, 0);
+  // Date locale du jour (format YYYY-MM-DD)
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Distributions enregistrées aujourd'hui vs total cumulé
+  const totalDispensedToday = dispenses
+    .filter(d => d.dateHeure && d.dateHeure.slice(0, 10) === todayStr)
+    .reduce((acc, d) => acc + d.volumeLivre, 0);
+  const dispensesTodayCount = dispenses
+    .filter(d => d.dateHeure && d.dateHeure.slice(0, 10) === todayStr).length;
+
+  const totalDispensedAllTime = dispenses.reduce((acc, d) => acc + d.volumeLivre, 0);
   const totalDelivered = entries.reduce((acc, e) => acc + e.quantiteLivree, 0);
+
+  // Consommation moyenne réelle enregistrée pour la flotte (L/100km et L/h)
+  const kmDispenses = dispenses.filter(d => {
+    const v = vehicles.find(veh => veh.id === d.vehiculeId);
+    return (!v || v.uniteMesure === 'km') && (d.deltaCompteur || 0) > 0;
+  });
+  const totalKmLitres = kmDispenses.reduce((acc, d) => acc + d.volumeLivre, 0);
+  const totalKmDelta = kmDispenses.reduce((acc, d) => acc + (d.deltaCompteur || 0), 0);
+  const fleetAverageConsoKm = totalKmDelta > 0 ? (totalKmLitres / totalKmDelta) * 100 : 0;
+
+  const hDispenses = dispenses.filter(d => {
+    const v = vehicles.find(veh => veh.id === d.vehiculeId);
+    return v?.uniteMesure === 'heures' && (d.deltaCompteur || 0) > 0;
+  });
+  const totalHLitres = hDispenses.reduce((acc, d) => acc + d.volumeLivre, 0);
+  const totalHDelta = hDispenses.reduce((acc, d) => acc + (d.deltaCompteur || 0), 0);
+  const fleetAverageConsoH = totalHDelta > 0 ? totalHLitres / totalHDelta : 0;
 
   const activeVehiclesCount = vehicles.filter(v => v.status === 'Actif').length;
   const maintenanceCount = vehicles.filter(v => v.status === 'En Maintenance').length;
@@ -188,28 +215,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Total Fuel Dispensed */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 relative overflow-hidden shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              Consommation Enregistrée
-            </span>
-            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              <Fuel className="w-4 h-4" />
+        {/* Total Fuel Dispensed & Consumption */}
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 relative overflow-hidden shadow-lg flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Consommation & Sorties Carburant
+              </span>
+              <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <Fuel className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="font-mono-num font-bold text-2xl text-slate-100">
+                {totalDispensedAllTime.toLocaleString('fr-FR')}
+              </span>
+              <span className="text-xs font-semibold text-blue-400">Litres Délivrés</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-xs">
+              <span className="text-slate-400">Aujourd'hui ({todayStr}) :</span>
+              <span className="font-mono-num font-bold text-amber-300">
+                {totalDispensedToday.toLocaleString('fr-FR')} L ({dispensesTodayCount} ticket{dispensesTodayCount > 1 ? 's' : ''})
+              </span>
             </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-mono-num font-bold text-2xl text-slate-100">
-              {totalDispensedToday.toLocaleString('fr-FR')}
-            </span>
-            <span className="text-xs font-semibold text-blue-400">Litres</span>
-          </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-            <span>Nombre de distributions:</span>
-            <span className="font-mono-num font-semibold text-slate-200">{dispenses.length} tickets</span>
-          </div>
-          <div className="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
-            <div className="bg-blue-500 h-full rounded-full" style={{ width: '65%' }} />
+
+          <div className="mt-3 pt-2.5 border-t border-slate-800/80">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400 font-medium">Conso Moyenne Flotte :</span>
+              <span className="font-mono-num font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded text-[11px]">
+                {fleetAverageConsoKm > 0 && fleetAverageConsoH > 0
+                  ? `${fleetAverageConsoKm.toFixed(1)} L/100km • ${fleetAverageConsoH.toFixed(1)} L/h`
+                  : fleetAverageConsoKm > 0
+                  ? `${fleetAverageConsoKm.toFixed(1)} L/100km`
+                  : fleetAverageConsoH > 0
+                  ? `${fleetAverageConsoH.toFixed(1)} L/h`
+                  : '--'}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+              <span>Total historique : {dispenses.length} tickets validés</span>
+            </div>
           </div>
         </div>
 

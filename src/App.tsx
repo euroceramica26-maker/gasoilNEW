@@ -1179,8 +1179,8 @@ export default function App() {
       if (v.id === newDispense.vehiculeId) {
         return {
           ...v,
-          kilometrageOuHeures: newDispense.compteurActuel,
-          derniereConsoReelle: newDispense.ratioConsommation
+          kilometrageOuHeures: Math.max(v.kilometrageOuHeures || 0, newDispense.compteurActuel),
+          derniereConsoReelle: newDispense.ratioConsommation > 0 ? newDispense.ratioConsommation : v.derniereConsoReelle
         };
       }
       return v;
@@ -1240,7 +1240,24 @@ export default function App() {
       }));
     }
 
-    setDispenses(prev => prev.filter(d => d.id !== id));
+    const remainingDispenses = dispenses.filter(d => d.id !== id);
+    setDispenses(remainingDispenses);
+
+    // Recalculer l'odomètre et la consommation réelle du véhicule à partir des tickets restants
+    const vehicleRemaining = remainingDispenses.filter(d => d.vehiculeId === dispenseToDelete.vehiculeId);
+    const latestWithRatio = vehicleRemaining.find(d => (d.ratioConsommation || 0) > 0);
+    const maxOdo = vehicleRemaining.length > 0 ? Math.max(...vehicleRemaining.map(d => d.compteurActuel)) : null;
+
+    setVehicles(prev => prev.map(v => {
+      if (v.id === dispenseToDelete.vehiculeId) {
+        return {
+          ...v,
+          kilometrageOuHeures: maxOdo !== null ? maxOdo : v.kilometrageOuHeures,
+          derniereConsoReelle: latestWithRatio ? latestWithRatio.ratioConsommation : v.consommationMoyenneTheorique
+        };
+      }
+      return v;
+    }));
 
     setAlerts(prev => [
       {
@@ -1249,6 +1266,59 @@ export default function App() {
         gravite: 'info',
         titre: `Ticket Supprimé : ${dispenseToDelete.codeTicket}`,
         message: `Le ticket ${dispenseToDelete.codeTicket} a été supprimé. Les ${dispenseToDelete.volumeLivre.toLocaleString('fr-FR')} L ont été restitués dans la citerne.`
+      },
+      ...prev
+    ]);
+  };
+
+  // Update Fuel Dispense (Correction de ticket de sortie ou consommation erronée)
+  const handleUpdateDispense = (updatedDispense: FuelDispense) => {
+    const oldDispense = dispenses.find(d => d.id === updatedDispense.id);
+    if (!oldDispense) return;
+
+    // Ajustement différentiel du stock de la citerne si le volume a changé
+    const volDiff = updatedDispense.volumeLivre - oldDispense.volumeLivre;
+    if (volDiff !== 0) {
+      setCiternes(prev => prev.map(c => {
+        if (c.id === updatedDispense.citerneId) {
+          return {
+            ...c,
+            stockActuel: Math.max(0, Math.min(c.capaciteTotale, c.stockActuel - volDiff))
+          };
+        }
+        return c;
+      }));
+    }
+
+    const updatedDispensesList = dispenses.map(d => d.id === updatedDispense.id ? updatedDispense : d);
+    setDispenses(updatedDispensesList);
+
+    // Recalculer l'odomètre et la consommation réelle du véhicule
+    const vehicleDispenses = updatedDispensesList.filter(d => d.vehiculeId === updatedDispense.vehiculeId);
+    const latestWithRatio = vehicleDispenses.find(d => (d.ratioConsommation || 0) > 0);
+    const maxOdo = Math.max(...vehicleDispenses.map(d => d.compteurActuel));
+
+    setVehicles(prev => prev.map(v => {
+      if (v.id === updatedDispense.vehiculeId) {
+        return {
+          ...v,
+          kilometrageOuHeures: maxOdo,
+          derniereConsoReelle: latestWithRatio ? latestWithRatio.ratioConsommation : (updatedDispense.ratioConsommation > 0 ? updatedDispense.ratioConsommation : v.derniereConsoReelle)
+        };
+      }
+      return v;
+    }));
+
+    const veh = vehicles.find(v => v.id === updatedDispense.vehiculeId);
+    setAlerts(prev => [
+      {
+        id: `alt-upd-dsp-${Date.now()}`,
+        date: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        gravite: updatedDispense.surconsommationAlerte ? 'danger' : 'info',
+        titre: updatedDispense.surconsommationAlerte ? `Surconsommation Corrigée : ${veh?.code || updatedDispense.codeTicket}` : `Ticket Mis à Jour : ${updatedDispense.codeTicket}`,
+        message: `Consommation enregistrée ajustée à ${updatedDispense.ratioConsommation.toFixed(2)} ${veh?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}.`,
+        clientId: updatedDispense.clientId,
+        entreprise: updatedDispense.entreprise
       },
       ...prev
     ]);
@@ -2440,6 +2510,7 @@ export default function App() {
             subscriptions={subscriptions}
             onAddDispense={handleAddDispense}
             onDeleteDispense={handleDeleteDispense}
+            onUpdateDispense={handleUpdateDispense}
             onOpenReports={() => setActiveTab('reports')}
           />
         )}

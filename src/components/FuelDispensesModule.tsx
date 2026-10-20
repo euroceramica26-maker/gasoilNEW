@@ -20,7 +20,10 @@ import {
   Search,
   Truck,
   Car,
-  BarChart3
+  BarChart3,
+  Edit2,
+  Calculator,
+  RotateCcw
 } from 'lucide-react';
 
 interface FuelDispensesModuleProps {
@@ -30,6 +33,7 @@ interface FuelDispensesModuleProps {
   currentUser?: User | null;
   subscriptions?: Subscription[];
   onAddDispense: (dispense: Omit<FuelDispense, 'id'>) => void;
+  onUpdateDispense?: (dispense: FuelDispense) => void;
   onDeleteDispense?: (id: string, restoreTankStock: boolean) => void;
   onOpenReports?: () => void;
 }
@@ -41,6 +45,7 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
   currentUser,
   subscriptions = [],
   onAddDispense,
+  onUpdateDispense,
   onDeleteDispense,
   onOpenReports
 }) => {
@@ -52,6 +57,7 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
 
   // Form State
+  const [editingDispense, setEditingDispense] = useState<FuelDispense | null>(null);
   const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id || '');
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [citerneId, setCiterneId] = useState(citernes[0]?.id || '');
@@ -59,7 +65,12 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
   const [chauffeur, setChauffeur] = useState('');
   const [volumeLivre, setVolumeLivre] = useState<number>(150);
   const [volumeLivreInput, setVolumeLivreInput] = useState<string>('150');
+  const [compteurPrecedent, setCompteurPrecedent] = useState<number>(0);
   const [compteurActuel, setCompteurActuel] = useState<number>(0);
+  const [deltaCompteur, setDeltaCompteur] = useState<number>(250);
+  const [isStationary, setIsStationary] = useState<boolean>(false);
+  const [isManualRatio, setIsManualRatio] = useState<boolean>(false);
+  const [manualRatioValue, setManualRatioValue] = useState<string>('');
   const [remarques, setRemarques] = useState('');
   const [signatureChauffeur, setSignatureChauffeur] = useState('');
   const [signaturePompiste, setSignaturePompiste] = useState('');
@@ -93,35 +104,99 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
     }
   }, [vehicles, selectedVehicleId]);
 
-  // Auto calculate delta and ratio
-  const compteurPrecedent = currentVehicle ? currentVehicle.kilometrageOuHeures : 0;
-  const delta = Math.max(0, compteurActuel - compteurPrecedent);
+  // Synchronisation bidirectionnelle des compteurs et calcul du delta
+  const handleCompteurPrecedentChange = (newPrec: number) => {
+    setCompteurPrecedent(newPrec);
+    setDeltaCompteur(Math.max(0, compteurActuel - newPrec));
+  };
 
+  const handleCompteurActuelChange = (newActuel: number) => {
+    setCompteurActuel(newActuel);
+    setDeltaCompteur(Math.max(0, newActuel - compteurPrecedent));
+  };
+
+  const handleDeltaChange = (newDelta: number) => {
+    const validDelta = Math.max(0, newDelta);
+    setDeltaCompteur(validDelta);
+    setCompteurActuel(compteurPrecedent + validDelta);
+  };
+
+  // Calcul transparent et vérifiable du ratio de consommation
   let calculatedRatio = 0;
-  if (currentVehicle && delta > 0 && volumeLivre > 0) {
+  if (isManualRatio && manualRatioValue) {
+    const parsed = parseFloat(manualRatioValue.replace(',', '.'));
+    calculatedRatio = isNaN(parsed) ? 0 : parsed;
+  } else if (!isStationary && currentVehicle && deltaCompteur > 0 && volumeLivre > 0) {
     if (currentVehicle.uniteMesure === 'km') {
-      calculatedRatio = (volumeLivre / delta) * 100;
+      // Litres aux 100 kilomètres : (Litres / km) * 100
+      calculatedRatio = (volumeLivre / deltaCompteur) * 100;
     } else {
-      calculatedRatio = volumeLivre / delta;
+      // Litres par heure moteur : Litres / heures
+      calculatedRatio = volumeLivre / deltaCompteur;
     }
   }
 
-  const isOverconsumption = currentVehicle && calculatedRatio > 0
+  const isOverconsumption = currentVehicle && calculatedRatio > 0 && !isStationary
     ? calculatedRatio > currentVehicle.consommationMoyenneTheorique * 1.15
     : false;
 
   const handleOpenForm = () => {
+    setEditingDispense(null);
+    setFormError(null);
     const v = vehicles[0];
     setSelectedVehicleId(v?.id || '');
     setCiterneId(citernes[0]?.id || '');
-    setCompteurActuel((v?.kilometrageOuHeures || 0) + (v?.uniteMesure === 'km' ? 250 : 12));
-    setVolumeLivre(120);
-    setVolumeLivreInput('120');
+    
+    // Récupérer le dernier index enregistré pour ce véhicule s'il existe
+    const vehicleDispenses = v ? dispenses.filter(d => d.vehiculeId === v.id) : [];
+    const lastDsp = vehicleDispenses.length > 0 ? vehicleDispenses[0] : null;
+    const initialPrec = lastDsp ? lastDsp.compteurActuel : (v?.kilometrageOuHeures || 0);
+
+    setCompteurPrecedent(initialPrec);
+    setDeltaCompteur(0);
+    setCompteurActuel(initialPrec);
+    setIsStationary(false);
+    setIsManualRatio(false);
+    setManualRatioValue('');
+    setVolumeLivre(0);
+    setVolumeLivreInput('');
     setChauffeur('Mourad Kharrat');
     setPompiste(currentUser ? `${currentUser.prenom} ${currentUser.nom}` : 'Samir Chaabane');
     setRemarques('');
     setSignatureChauffeur('');
     setSignaturePompiste('');
+    setActiveSignatoryTab('pompiste');
+    setVehicleSearch('');
+    setIsFormOpen(true);
+  };
+
+  const handleOpenEdit = (dsp: FuelDispense) => {
+    setEditingDispense(dsp);
+    setFormError(null);
+    setSelectedVehicleId(dsp.vehiculeId);
+    setCiterneId(dsp.citerneId);
+    setVolumeLivre(dsp.volumeLivre);
+    setVolumeLivreInput(String(dsp.volumeLivre).replace('.', ','));
+    setCompteurPrecedent(dsp.compteurPrecedent || 0);
+    setCompteurActuel(dsp.compteurActuel);
+    const delta = dsp.deltaCompteur !== undefined ? dsp.deltaCompteur : Math.max(0, dsp.compteurActuel - (dsp.compteurPrecedent || 0));
+    setDeltaCompteur(delta);
+    setIsStationary(delta === 0);
+
+    // Détecter si un ratio manuel spécifique avait été saisi
+    const v = vehicles.find(item => item.id === dsp.vehiculeId);
+    const autoRatio = delta > 0 && dsp.volumeLivre > 0
+      ? (v?.uniteMesure === 'km' ? (dsp.volumeLivre / delta) * 100 : dsp.volumeLivre / delta)
+      : 0;
+    const isCustom = dsp.ratioConsommation > 0 && Math.abs(dsp.ratioConsommation - autoRatio) > 0.05;
+
+    setIsManualRatio(isCustom);
+    setManualRatioValue(String(dsp.ratioConsommation || ''));
+    setChauffeur(dsp.chauffeur);
+    setPompiste(dsp.pompiste);
+    setRemarques(dsp.remarques || '');
+    setSignatureChauffeur(dsp.signatureChauffeur || '');
+    setSignaturePompiste(dsp.signaturePompiste || '');
     setActiveSignatoryTab('pompiste');
     setVehicleSearch('');
     setIsFormOpen(true);
@@ -170,8 +245,12 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
     setSelectedVehicleId(vId);
     const v = vehicles.find(item => item.id === vId);
     if (v) {
-      const suggestedIncrement = v.uniteMesure === 'km' ? 300 : 15;
-      setCompteurActuel(v.kilometrageOuHeures + suggestedIncrement);
+      const vehicleDispenses = dispenses.filter(d => d.vehiculeId === vId && (!editingDispense || d.id !== editingDispense.id));
+      const lastDsp = vehicleDispenses.length > 0 ? vehicleDispenses[0] : null;
+      const prec = lastDsp ? lastDsp.compteurActuel : (v.kilometrageOuHeures || 0);
+      setCompteurPrecedent(prec);
+      setDeltaCompteur(0);
+      setCompteurActuel(prec);
     }
   };
 
@@ -194,13 +273,42 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
       return;
     }
 
-    if (finalVolume > currentCiterne.stockActuel) {
+    if (finalVolume > currentCiterne.stockActuel && !editingDispense) {
       setFormError(`Stock insuffisant dans ${currentCiterne.code} (reste ${currentCiterne.stockActuel.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} L).`);
       return;
     }
 
-    if (compteurActuel < compteurPrecedent) {
+    if (!isStationary && compteurActuel < compteurPrecedent) {
       setFormError(`L'index compteur actuel (${compteurActuel}) ne peut pas être inférieur au compteur précédent (${compteurPrecedent}).`);
+      return;
+    }
+
+    const finalRatio = Number(calculatedRatio.toFixed(2));
+
+    if (editingDispense) {
+      const updated: FuelDispense = {
+        ...editingDispense,
+        citerneId,
+        vehiculeId: selectedVehicleId,
+        pompiste,
+        chauffeur: chauffeur || 'Chauffeur de bord',
+        volumeLivre: finalVolume,
+        compteurActuel: isStationary ? compteurPrecedent : compteurActuel,
+        compteurPrecedent,
+        deltaCompteur: isStationary ? 0 : deltaCompteur,
+        ratioConsommation: finalRatio,
+        surconsommationAlerte: isOverconsumption,
+        signatureChauffeur,
+        signaturePompiste,
+        remarques
+      };
+
+      if (onUpdateDispense) {
+        onUpdateDispense(updated);
+      }
+      setIsFormOpen(false);
+      setActionFeedback(`Le ticket ${editingDispense.codeTicket} et sa consommation (${finalRatio.toFixed(2)} ${currentVehicle.uniteMesure === 'km' ? 'L/100km' : 'L/h'}) ont été corrigés avec succès !`);
+      setSelectedDispenseForPrint(updated);
       return;
     }
 
@@ -212,10 +320,10 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
       pompiste,
       chauffeur: chauffeur || 'Chauffeur de bord',
       volumeLivre: finalVolume,
-      compteurActuel,
+      compteurActuel: isStationary ? compteurPrecedent : compteurActuel,
       compteurPrecedent,
-      deltaCompteur: delta,
-      ratioConsommation: Number(calculatedRatio.toFixed(2)),
+      deltaCompteur: isStationary ? 0 : deltaCompteur,
+      ratioConsommation: finalRatio,
       surconsommationAlerte: isOverconsumption,
       signatureChauffeur,
       signaturePompiste,
@@ -226,6 +334,7 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
 
     onAddDispense(newDispense);
     setIsFormOpen(false);
+    setActionFeedback(`Plein enregistré avec succès. Consommation calculée : ${finalRatio.toFixed(2)} ${currentVehicle.uniteMesure === 'km' ? 'L/100km' : 'L/h'}.`);
 
     // Auto open ticket print preview
     setSelectedDispenseForPrint({
@@ -365,21 +474,37 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
                     </td>
 
                     <td className="p-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`font-mono-num font-bold text-sm ${
-                          dsp.surconsommationAlerte ? 'text-red-400' : 'text-emerald-400'
-                        }`}>
-                          {dsp.ratioConsommation.toFixed(1)} {veh?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}
-                        </span>
-                        {dsp.surconsommationAlerte && (
-                          <span title="Surconsommation détectée !" className="p-0.5 bg-red-950 text-red-400 rounded">
-                            <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
+                      {dsp.deltaCompteur === 0 || !dsp.ratioConsommation || dsp.ratioConsommation === 0 ? (
+                        <div className="flex flex-col">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 w-fit">
+                            Stationnaire / Direct
                           </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-mono-num">
-                        Théorique: {veh?.consommationMoyenneTheorique}
-                      </span>
+                          <span className="text-[10px] text-slate-500 mt-0.5">
+                            Sans déplacement (N/A)
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span 
+                              className={`font-mono-num font-bold text-sm ${
+                                dsp.surconsommationAlerte ? 'text-red-400' : 'text-emerald-400'
+                              }`}
+                              title={`Formule : (${dsp.volumeLivre} L ÷ ${dsp.deltaCompteur} ${veh?.uniteMesure || 'km'})${veh?.uniteMesure === 'km' ? ' × 100' : ''} = ${dsp.ratioConsommation.toFixed(2)}`}
+                            >
+                              {dsp.ratioConsommation.toFixed(1)} {veh?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}
+                            </span>
+                            {dsp.surconsommationAlerte && (
+                              <span title="Surconsommation détectée !" className="p-0.5 bg-red-950 text-red-400 rounded">
+                                <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono-num">
+                            Théorique: {veh?.consommationMoyenneTheorique} {veh?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}
+                          </span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="p-3.5 text-[11px] text-slate-400">
@@ -402,6 +527,16 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
                           ) : (
                             <span className="w-2 h-2 rounded-full bg-amber-400" title="1/2 signature" />
                           )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(dsp)}
+                          title="Modifier ce ticket et corriger la consommation enregistrée"
+                          className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 rounded-lg text-xs font-semibold flex items-center gap-1 border border-slate-700 transition cursor-pointer"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                          <span>Modifier</span>
                         </button>
 
                         <button
@@ -441,10 +576,14 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
               <div>
                 <h3 className="font-bold text-slate-100 text-base flex items-center gap-2 font-industrial">
                   <Fuel className="w-5 h-5 text-amber-500" />
-                  Délivrance de Carburant au Pistolet (Plein)
+                  {editingDispense 
+                    ? `Correction Ticket ${editingDispense.codeTicket} — Ajustement de Consommation` 
+                    : 'Délivrance de Carburant au Pistolet (Plein)'}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Calcul en direct de la consommation moyenne et contrôle de cohérence
+                  {editingDispense 
+                    ? 'Ajustez les compteurs, le volume ou le ratio pour corriger la consommation enregistrée' 
+                    : 'Calcul en direct de la consommation moyenne et contrôle de cohérence métrologique'}
                 </p>
               </div>
               <button 
@@ -628,76 +767,192 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
               </div>
 
               {/* Counters & Volume Delivered */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-950/60 border border-slate-800 rounded-xl">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-slate-400 font-semibold text-amber-400">
-                      Volume Carburant Pompé (Litres) *
+              <div className="space-y-3 p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-300 font-semibold text-amber-400">
+                        Volume Carburant Pompé (Litres) *
+                      </label>
+                      <span className="text-[10px] text-amber-400 font-mono-num bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded">
+                        Virgule tolérée • 2 décimales
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        required
+                        placeholder="Ex: 150,25 ou 120"
+                        value={volumeLivreInput}
+                        onChange={e => handleVolumeChange(e.target.value)}
+                        onBlur={handleVolumeBlur}
+                        className="w-full p-2.5 pr-10 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded text-amber-400 font-bold font-mono-num text-base focus:outline-none transition"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs pointer-events-none">
+                        L
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block font-mono-num">
+                      Volume délivré au pistolet
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-slate-300 block font-semibold">
+                          Distance / Temps Parcouru (Delta) *
+                        </label>
+                        <span className="text-[10px] text-slate-400 font-mono-num">
+                          Différence calculée
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          disabled={isStationary}
+                          value={deltaCompteur}
+                          onChange={e => handleDeltaChange(Number(e.target.value))}
+                          className="w-full p-2.5 pr-12 bg-slate-900 border border-slate-700 focus:border-cyan-500 rounded text-cyan-300 font-bold font-mono-num text-base focus:outline-none transition disabled:opacity-40"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs pointer-events-none">
+                          {currentVehicle?.uniteMesure || 'km'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <label className="flex items-center gap-2 mt-2 text-[11px] text-slate-400 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={isStationary}
+                        onChange={e => {
+                          setIsStationary(e.target.checked);
+                          if (e.target.checked) setDeltaCompteur(0);
+                        }}
+                        className="rounded border-slate-700 text-amber-500 focus:ring-0"
+                      />
+                      <span>Plein stationnaire / transfert direct (sans déplacement)</span>
                     </label>
-                    <span className="text-[10px] text-amber-400 font-mono-num bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded">
-                      Virgule tolérée • 2 décimales
-                    </span>
                   </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      required
-                      placeholder="Ex: 150,25 ou 120"
-                      value={volumeLivreInput}
-                      onChange={e => handleVolumeChange(e.target.value)}
-                      onBlur={handleVolumeBlur}
-                      className="w-full p-2.5 pr-10 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded text-amber-400 font-bold font-mono-num text-base focus:outline-none transition"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs pointer-events-none">
-                      L
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block font-mono-num">
-                    Format : 0,00 L (virgule ou point acceptés, ex: 150,25)
-                  </span>
                 </div>
 
-                <div>
-                  <label className="text-slate-400 block mb-1 font-semibold text-slate-200">
-                    Index Compteur Actuel ({currentVehicle?.uniteMesure}) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min={compteurPrecedent}
-                    value={compteurActuel}
-                    onChange={e => setCompteurActuel(Number(e.target.value))}
-                    className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono-num text-base"
-                  />
+                {/* Index Compteurs Précédent et Actuel avec synchronisation */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-400 block font-medium">
+                        Index Précédent ({currentVehicle?.uniteMesure || 'km'})
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-mono-num">
+                        Compteur au départ
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      value={compteurPrecedent}
+                      onChange={e => handleCompteurPrecedentChange(Number(e.target.value))}
+                      className="w-full p-2 bg-slate-900 border border-slate-700 focus:border-slate-500 rounded text-slate-200 font-mono-num text-sm focus:outline-none transition"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-400 block font-medium">
+                        Index Actuel ({currentVehicle?.uniteMesure || 'km'}) *
+                      </label>
+                      <span className="text-[10px] text-slate-500 font-mono-num">
+                        Relevé au pistolet
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      required={!isStationary}
+                      disabled={isStationary}
+                      min={compteurPrecedent}
+                      value={compteurActuel}
+                      onChange={e => handleCompteurActuelChange(Number(e.target.value))}
+                      className="w-full p-2 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded text-slate-100 font-bold font-mono-num text-sm focus:outline-none transition disabled:opacity-40"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Dynamic Consumption Preview Banner */}
-              <div className={`p-3 rounded-xl border flex items-center justify-between ${
+              {/* Dynamic Consumption Preview Banner avec formule explicite */}
+              <div className={`p-3.5 rounded-xl border space-y-2 ${
                 isOverconsumption 
                   ? 'bg-red-950/70 border-red-500/40 text-red-200' 
+                  : isStationary
+                  ? 'bg-slate-900 border-slate-700 text-slate-300'
                   : 'bg-emerald-950/60 border-emerald-500/30 text-emerald-200'
               }`}>
-                <div className="flex items-center gap-2.5">
-                  <Gauge className={`w-5 h-5 ${isOverconsumption ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`} />
-                  <div>
-                    <span className="font-semibold text-xs block">
-                      {isOverconsumption ? 'Alerte Surconsommation Détectée !' : 'Calcul Instantané de la Consommation :'}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-start gap-2.5">
+                    <Gauge className={`w-5 h-5 mt-0.5 shrink-0 ${isOverconsumption ? 'text-red-400 animate-pulse' : 'text-emerald-400'}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs">
+                          {isStationary 
+                            ? 'Plein Stationnaire (Aucun ratio calculé)'
+                            : isOverconsumption 
+                            ? 'Alerte : Surconsommation Détectée !' 
+                            : 'Consommation Calculée en Direct :'}
+                        </span>
+                        {isOverconsumption && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-800 text-white font-bold">
+                            &gt; +15%
+                          </span>
+                        )}
+                      </div>
+                      {!isStationary && (
+                        <p className="text-[11px] opacity-90 font-mono-num mt-0.5">
+                          {currentVehicle?.uniteMesure === 'km' 
+                            ? `Formule : (${volumeLivre} L ÷ ${deltaCompteur} km) × 100 = ${calculatedRatio.toFixed(2)} L/100km`
+                            : `Formule : ${volumeLivre} L ÷ ${deltaCompteur} h = ${calculatedRatio.toFixed(2)} L/h`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="font-mono-num text-lg font-black block">
+                      {isStationary 
+                        ? 'N/A (Stationnaire)' 
+                        : calculatedRatio > 0 
+                        ? `${calculatedRatio.toFixed(2)} ${currentVehicle?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}` 
+                        : '--'}
                     </span>
-                    <span className="text-[11px] opacity-80">
-                      Delta: +{delta} {currentVehicle?.uniteMesure} parcourus depuis le dernier plein
+                    <span className="text-[10px] opacity-75 font-mono-num block">
+                      Référence usine : {currentVehicle?.consommationMoyenneTheorique} {currentVehicle?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}
                     </span>
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <span className="font-mono-num text-base font-bold block">
-                    {calculatedRatio > 0 ? calculatedRatio.toFixed(2) : '--'} {currentVehicle?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}
-                  </span>
-                  <span className="text-[10px] opacity-70 font-mono-num">
-                    Réf constructeur: {currentVehicle?.consommationMoyenneTheorique}
-                  </span>
+                {/* Option d'ajustement manuel du ratio en cas de besoin spécifique */}
+                <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setIsManualRatio(!isManualRatio)}
+                    className="text-amber-400 hover:text-amber-300 underline font-medium cursor-pointer"
+                  >
+                    {isManualRatio ? '← Utiliser le calcul automatique standard' : '✎ Ajuster le ratio de consommation manuellement...'}
+                  </button>
+
+                  {isManualRatio && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400">Ratio manuel :</span>
+                      <input
+                        type="text"
+                        placeholder="Ex: 34.5"
+                        value={manualRatioValue}
+                        onChange={e => setManualRatioValue(e.target.value)}
+                        className="w-20 px-2 py-0.5 bg-slate-900 border border-amber-500/60 rounded text-amber-300 font-mono-num text-xs"
+                      />
+                      <span className="text-slate-400 font-mono-num">{currentVehicle?.uniteMesure === 'km' ? 'L/100km' : 'L/h'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -827,7 +1082,7 @@ export const FuelDispensesModule: React.FC<FuelDispensesModuleProps> = ({
                   className="px-5 py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
                 >
                   <CheckCircle2 className="w-4 h-4 stroke-[3]" />
-                  Valider Distribution & Générer Ticket
+                  {editingDispense ? 'Enregistrer les Corrections du Ticket' : 'Valider Distribution & Générer Ticket'}
                 </button>
               </div>
             </form>
